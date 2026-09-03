@@ -3,6 +3,8 @@
 
 #![forbid(unsafe_code)]
 
+use aiai_runtime::ActivationTransition;
+
 /// Opaque map target selected and owned by the product world layer.
 ///
 /// Avaia may refer to a target but does not mint or reinterpret its coordinates.
@@ -48,18 +50,43 @@ impl AvaiaActionProposal {
     ///
     /// # Errors
     /// Returns [`NavigationProposalError::EmptyTargetId`] when `target_id` is empty.
-    pub fn navigate_to(
-        target_id: impl Into<String>,
-    ) -> Result<Self, NavigationProposalError> {
+    pub fn navigate_to(target_id: impl Into<String>) -> Result<Self, NavigationProposalError> {
         Ok(Self::NavigateTo {
             target: MapTargetId::new(target_id)?,
         })
     }
 }
 
+/// 0x1 owner/AI runtime modes.
+///
+/// These remain product semantics; the shared foundation only supplies the generic
+/// activation state machine that enforces when computation may run.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AvaiaControlMode {
+    Spectate,
+    Manual,
+    Offline,
+}
+
+impl AvaiaControlMode {
+    /// Maps a product runtime-mode transition onto the generic foundation gate.
+    #[must_use]
+    pub const fn activation_transition(self) -> ActivationTransition {
+        match self {
+            Self::Spectate => ActivationTransition::Wake,
+            Self::Manual => ActivationTransition::Quiesce,
+            Self::Offline => ActivationTransition::Settle,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{AvaiaActionProposal, MapTargetId, NavigationProposalError};
+    use aiai_runtime::{ActivationState, ActivationTransition};
+
+    use super::{
+        AvaiaActionProposal, AvaiaControlMode, MapTargetId, NavigationProposalError,
+    };
 
     #[test]
     fn navigate_to_keeps_target_opaque() {
@@ -87,5 +114,39 @@ mod tests {
             AvaiaActionProposal::StopNavigation,
             AvaiaActionProposal::StopNavigation
         );
+    }
+
+    #[test]
+    fn control_modes_bind_to_foundation_activation_transitions() {
+        assert_eq!(
+            AvaiaControlMode::Spectate.activation_transition(),
+            ActivationTransition::Wake
+        );
+        assert_eq!(
+            AvaiaControlMode::Manual.activation_transition(),
+            ActivationTransition::Quiesce
+        );
+        assert_eq!(
+            AvaiaControlMode::Offline.activation_transition(),
+            ActivationTransition::Settle
+        );
+    }
+
+    #[test]
+    fn product_modes_walk_the_foundation_activation_cycle() {
+        let active = ActivationState::Dormant
+            .apply(AvaiaControlMode::Spectate.activation_transition())
+            .unwrap();
+        assert_eq!(active, ActivationState::Active);
+
+        let quiescing = active
+            .apply(AvaiaControlMode::Manual.activation_transition())
+            .unwrap();
+        assert_eq!(quiescing, ActivationState::Quiescing);
+
+        let dormant = quiescing
+            .apply(AvaiaControlMode::Offline.activation_transition())
+            .unwrap();
+        assert_eq!(dormant, ActivationState::Dormant);
     }
 }
