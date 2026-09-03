@@ -84,9 +84,7 @@ impl AvaiaControlMode {
 mod tests {
     use aiai_runtime::{ActivationState, ActivationTransition};
 
-    use super::{
-        AvaiaActionProposal, AvaiaControlMode, MapTargetId, NavigationProposalError,
-    };
+    use super::{AvaiaActionProposal, AvaiaControlMode, MapTargetId, NavigationProposalError};
 
     #[test]
     fn navigate_to_keeps_target_opaque() {
