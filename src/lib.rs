@@ -1,5 +1,5 @@
 // © 2026 aiaiaiai · aiaiaiai.org
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MPL-2.0
 
 #![forbid(unsafe_code)]
 
