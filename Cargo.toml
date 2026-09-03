@@ -1,12 +1,12 @@
 # © 2026 aiaiaiai · aiaiaiai.org
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MPL-2.0
 
 [package]
 name = "nilx-one-ai"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.85"
-license = "Apache-2.0"
+license = "MPL-2.0"
 repository = "https://github.com/nilx-one/ai"
 
 [lib]
