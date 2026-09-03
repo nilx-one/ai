@@ -12,6 +12,9 @@ repository = "https://github.com/nilx-one/ai"
 [lib]
 path = "src/lib.rs"
 
+[dependencies]
+aiai-runtime = { git = "https://github.com/aiaiaiai-org/artificial-intelligence.git", rev = "a88e732cf8a102711806338e956f0ec60e0ad933" }
+
 [lints.rust]
 unsafe_code = "forbid"
 
