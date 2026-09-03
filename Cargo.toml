@@ -1,0 +1,20 @@
+# © 2026 aiaiaiai · aiaiaiai.org
+# SPDX-License-Identifier: Apache-2.0
+
+[package]
+name = "nilx-one-ai"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+license = "Apache-2.0"
+repository = "https://github.com/nilx-one/ai"
+
+[lib]
+path = "src/lib.rs"
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = "deny"
+pedantic = "deny"
