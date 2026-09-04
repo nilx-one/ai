@@ -13,7 +13,16 @@ repository = "https://github.com/nilx-one/ai"
 path = "src/lib.rs"
 
 [dependencies]
-aiai-runtime = { git = "https://github.com/aiaiaiai-org/artificial-intelligence.git", rev = "a88e732cf8a102711806338e956f0ec60e0ad933" }
+# TEMPORARY PIN. This revision is only reachable from the foundation branch
+# `claude/failure-routing` (its pull request #8), not from `master`. A revision that
+# never reaches `master` is orphaned when its branch is deleted, and every consumer
+# pinned to it stops resolving — so this must be re-pointed at a `master` revision
+# before this branch is merged. See the foundation's docs/consuming.md.
+aiai-runtime = { git = "https://github.com/aiaiaiai-org/artificial-intelligence.git", rev = "cc98bf9e47fd88e37c0ed29201262c592a16f2d2" }
+serde = { version = "1.0", features = ["derive"] }
+
+[dev-dependencies]
+serde_json = "1.0"
 
 [lints.rust]
 unsafe_code = "forbid"
