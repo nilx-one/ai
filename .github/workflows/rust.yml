@@ -1,0 +1,27 @@
+# © 2026 aiaiaiai · aiaiaiai.org
+# SPDX-License-Identifier: MPL-2.0
+
+name: Rust CI
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  correctness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain
+        run: rustup toolchain install 1.85.0 --profile minimal --component rustfmt,clippy
+      - name: Format
+        run: cargo +1.85.0 fmt --all --check
+      - name: Clippy
+        run: cargo +1.85.0 clippy --all-targets --all-features -- -D warnings
+      - name: Test
+        run: cargo +1.85.0 test --all-features
