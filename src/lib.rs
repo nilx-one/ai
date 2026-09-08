@@ -3,7 +3,11 @@
 
 #![forbid(unsafe_code)]
 
-use aiai_runtime::ActivationTransition;
+mod routing;
+
+use aiai_runtime::ActivationState;
+
+pub use routing::{AvaiaFailureReport, FailureSink, RoutedFailure, route_failure};
 
 /// Opaque map target selected and owned by the product world layer.
 ///
@@ -69,20 +73,26 @@ pub enum AvaiaControlMode {
 }
 
 impl AvaiaControlMode {
-    /// Maps a product runtime-mode transition onto the generic foundation gate.
+    /// Maps a product runtime mode onto the activation state it names.
+    ///
+    /// A mode names a state, not an edge. Mapping one onto a transition only works from
+    /// the single state that edge leaves, so the target is the state and the foundation's
+    /// `ensure_activation` resolves the step — which makes re-applying the mode a session
+    /// is already in a no-op rather than an undefined transition. A client renders the
+    /// current mode on every reconnect, so that case is the common one.
     #[must_use]
-    pub const fn activation_transition(self) -> ActivationTransition {
+    pub const fn activation_state(self) -> ActivationState {
         match self {
-            Self::Spectate => ActivationTransition::Wake,
-            Self::Manual => ActivationTransition::Quiesce,
-            Self::Offline => ActivationTransition::Settle,
+            Self::Spectate => ActivationState::Active,
+            Self::Manual => ActivationState::Quiescing,
+            Self::Offline => ActivationState::Dormant,
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use aiai_runtime::{ActivationState, ActivationTransition};
+    use aiai_runtime::ActivationState;
 
     use super::{AvaiaActionProposal, AvaiaControlMode, MapTargetId, NavigationProposalError};
 
@@ -115,36 +125,55 @@ mod tests {
     }
 
     #[test]
-    fn control_modes_bind_to_foundation_activation_transitions() {
+    fn control_modes_bind_to_foundation_activation_states() {
         assert_eq!(
-            AvaiaControlMode::Spectate.activation_transition(),
-            ActivationTransition::Wake
+            AvaiaControlMode::Spectate.activation_state(),
+            ActivationState::Active
         );
         assert_eq!(
-            AvaiaControlMode::Manual.activation_transition(),
-            ActivationTransition::Quiesce
+            AvaiaControlMode::Manual.activation_state(),
+            ActivationState::Quiescing
         );
         assert_eq!(
-            AvaiaControlMode::Offline.activation_transition(),
-            ActivationTransition::Settle
+            AvaiaControlMode::Offline.activation_state(),
+            ActivationState::Dormant
         );
     }
 
     #[test]
     fn product_modes_walk_the_foundation_activation_cycle() {
-        let active = ActivationState::Dormant
-            .apply(AvaiaControlMode::Spectate.activation_transition())
-            .unwrap();
-        assert_eq!(active, ActivationState::Active);
+        let mut state = ActivationState::Dormant;
 
-        let quiescing = active
-            .apply(AvaiaControlMode::Manual.activation_transition())
-            .unwrap();
-        assert_eq!(quiescing, ActivationState::Quiescing);
+        for mode in [
+            AvaiaControlMode::Spectate,
+            AvaiaControlMode::Manual,
+            AvaiaControlMode::Offline,
+        ] {
+            if let Some(transition) = state.transition_to(mode.activation_state()).unwrap() {
+                state = state.apply(transition).unwrap();
+            }
+            assert_eq!(state, mode.activation_state());
+        }
+    }
 
-        let dormant = quiescing
-            .apply(AvaiaControlMode::Offline.activation_transition())
-            .unwrap();
-        assert_eq!(dormant, ActivationState::Dormant);
+    /// A client re-sends the mode it is already in on every reconnect. That must resolve
+    /// to no step at all rather than to a transition the state machine does not define.
+    #[test]
+    fn re_applying_the_current_mode_resolves_to_no_step() {
+        assert_eq!(
+            ActivationState::Active.transition_to(AvaiaControlMode::Spectate.activation_state()),
+            Ok(None)
+        );
+    }
+
+    /// Leaving MANUAL for SPECTATE is two explicit steps: settling is the owner's
+    /// assertion that in-flight work reached its boundary, not one this crate makes.
+    #[test]
+    fn quiescing_does_not_resolve_back_into_activity() {
+        assert!(
+            ActivationState::Quiescing
+                .transition_to(AvaiaControlMode::Spectate.activation_state())
+                .is_err()
+        );
     }
 }
