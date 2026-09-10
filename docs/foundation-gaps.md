@@ -53,11 +53,17 @@ The pinned runtime asks a device for `maxBufferSize` and `maxStorageBufferBindin
 each with no fallback at all — and 10 is above the `WebGPU` default of 8, so a current,
 healthy device can clear every recorded row and still fail to initialize.
 
-`probes/webgpu` records WebGPU availability, `shader-f16`, `maxBufferSize`, and
-`maxStorageBufferBindingSize`. Adding the two missing limits is a few lines in the probe page
-and two columns in its results table, and it is the cheapest of these three changes by a wide
-margin. It is also the one that changes what a measured row *means*: without them, a row can
-read "supported" for a surface the runtime refuses to start on.
+`probes/webgpu` does record all four limits in the JSON it asks you to paste — but it calls
+only the two buffer limits decisive, files the other two under a heading whose own comment
+says nothing refuses on them, and drops both from the summary table in `RESULTS.md`. So the
+numbers are in the record and the verdict cannot be read off it, which for
+`maxStorageBuffersPerShaderStage` is the difference between "modern device" and "nothing will
+load here".
+
+Checking the floors in `probeWebGpu`, promoting the rows, and adding the two columns is the
+cheapest of these three changes by a wide margin. It is also the one that changes what a
+measured row *means*: without it, a row reads "supported" for a surface the runtime refuses
+to start on.
 
 The floors themselves are a candidate to move with it. This repository currently quotes them
 in `inference::runtime_floor` because selection has to refuse on them, but they are facts
@@ -76,6 +82,19 @@ typed capability value: the shape of what a probe reports belongs beside the pro
   type on purpose, and a navigation verb is exactly that kind of type.
 - **Anything that models completion.** The foundation stops at an effect request, and 0x1
   and `core` own whether anything happened. Nothing here changes that.
+
+## Prepared
+
+Patches for all three exist and are verified against `master` at `8ddc1c7` with `npm ci`,
+`npm run typecheck:web`, `npm run test:web` (28 contracts + 13 webllm, none failing),
+`check_architecture.py`, and `check_repository_policy.py Apache-2.0`:
+
+- `cc/probe-runtime-floors` — gap 3, plus the exported floors from the end of gap 3's second
+  paragraph, so the copy in `inference::runtime_floor` has somewhere to come from.
+- `cc/host-appconfig-and-response-format` — gaps 1 and 2.
+
+They are independent but touch the same three files, so whichever lands second rebases.
+Tracked from this side in [#11](https://github.com/nilx-one/ai/issues/11).
 
 ## Until then
 

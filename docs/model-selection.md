@@ -202,8 +202,10 @@ device fact, and three results would move it:
   128 MiB, and throws below that; it also requires 32 KiB of `maxComputeWorkgroupStorageSize`
   and **10** storage buffers per shader stage, where the `WebGPU` default is 8, with no
   fallback for either. `select_local_model` refuses on those floors before it looks at the
-  catalog. The probe records only the first two, so its results table cannot currently answer
-  the last two at all — see [Foundation gaps](foundation-gaps.md).
+  catalog. The probe page records all four in the JSON it asks you to paste, but treats only
+  the two buffer limits as decisive and drops the other two from its summary table — so a
+  recorded surface can read "supported" for a device nothing will load on. See
+  [Foundation gaps](foundation-gaps.md).
 - **No adapter at all.** That surface never renders a local model as available, and Avaia is
   remote or absent there.
 
