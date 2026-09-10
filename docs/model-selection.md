@@ -77,6 +77,29 @@ own domain, and 2B does not buy enough to be worth taking it on.
 thinking enabled: the adapter disables thinking and caps generation at 128 tokens, so a
 model that reasons before answering answers less within the same budget.
 
+### Mistral, and the rest of the small field
+
+Every entry in the pinned registry that could plausibly have fit, with what it costs at
+`q4f16_1` and why it is not served. The `q4f32_1` twins are omitted: each costs roughly 1.3×
+its row and none of them wins a row it lost at half precision.
+
+| `model_id` | VRAM MB | Why not |
+|---|---:|---|
+| `Ministral-3-3B-Instruct-2512-BF16-q4f16_1-MLC` | 2863.69 | 618 MB above the upgrade entry — a third tier, not a replacement for either. Licence to read: the `Ministral` line has shipped under Mistral's research licence while `Mistral-7B-Instruct` shipped Apache-2.0, so the family name settles nothing. Ukrainian not among the languages it is known for. |
+| `Ministral-3-3B-Base-2512-…` / `…-Reasoning-2512-…` | 2863.69 | Same size, and neither checkpoint is the one to serve: a base model is not instruction-tuned, and a reasoning checkpoint spends a 128-token budget on itself. |
+| `Mistral-7B-Instruct-v0.3-q4f16_1-MLC` | 4573.39 | Apache-2.0 and the cleanest licence in the field, at twice the upgrade entry's VRAM. `OpenHermes`, `NeuralHermes`, and `Hermes-2-Pro` on the same base sit at 4033–4573. |
+| `Hermes-3-Llama-3.2-3B-q4f16_1-MLC` | 2263.69 | Lands exactly on the upgrade budget, and is Llama 3.2 underneath: the community licence and the eight official languages come with it. |
+| `Phi-3.5-mini-instruct-q4f16_1-MLC` | 3672.07 | MIT, and Ukrainian *is* among its listed languages — the only entry outside Qwen that clears both of the first two rows. It loses on size: 3672 MB at a 4096 window, or 2520 MB in the `-1k` variant whose 1024-token window a system prompt and a short history would consume by themselves. |
+| `stablelm-2-zephyr-1_6b-q4f16_1-MLC` | 2087.66 | Stability's community licence rather than Apache-2.0, and a language list that stops before Ukrainian. |
+| `OLMo-2-0425-1B-Instruct-q4f16_1-MLC` | 1776.75 | Apache-2.0 and cheap; an English model. |
+| `gemma-2-2b-it` / `gemma-2b-it` / `gemma3-1b-it` | 1476–1895 | Gemma Terms travel to whoever receives the weights, and none of these sizes is the multilingual one. |
+| `SmolLM2-*`, `TinyLlama-*`, `phi-1_5`, `phi-2`, `RedPajama-*` | 359–3054 | The cheapest rows in the registry, all English. |
+| `DeepSeek-R1-Distill-Qwen-1.5B-*` | — | Commented out of the `0.2.84` registry over a correctness issue, so it has no artifacts to serve, and it is a reasoning distillation regardless. |
+
+The pattern the table makes is the argument for `Qwen`: outside it, an entry that clears the
+licence row loses the language row, and the one entry that clears both — `Phi-3.5-mini` —
+asks for either 3672 MB or a 1024-token window.
+
 ## The decision: two models, one family
 
 | Role | `model_id` | VRAM MB | Registry says |
