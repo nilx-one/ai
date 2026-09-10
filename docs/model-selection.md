@@ -11,8 +11,10 @@ for, and that is the first section because it reorders everything after it.
 
 ## What the model is for
 
-Avaia is not a conversational partner and nobody is going to chat with it. It explores,
-moves, gradually lives, and chooses where to go next.
+In this slice Avaia explores, moves, gradually lives, and chooses where to go next. Nobody
+talks to it, and it answers nobody in prose. That is what this slice needs the model for; it
+is not a claim about what Avaia may ever do, and a later slice that needs language is free to
+reopen this decision.
 
 What that makes the model's output is a **choice from a closed set the product already
 resolved** — this crate's `AvaiaActionProposal`, which is `NavigateTo { target }` over an
@@ -27,9 +29,13 @@ Three consequences, and they are the whole reason this analysis was redone:
 - **Validity is a decoding property, not a model property.** A grammar-constrained decode
   emits one of the allowed targets or nothing; the model's remaining job is to pick a
   *good* one from a short structured context.
-- **The model is resident, not summoned.** Something that lives takes many small decisions
-  across a session, so its memory is held rather than spent once, and it has to survive
-  losing its own cache.
+- **The engine is resident, not summoned.** Something that lives takes many small decisions
+  across a session, so the loaded engine and its weights occupy the device between them
+  rather than being paid for once, and they have to survive losing their own cache. This is
+  a resource and lifecycle fact and nothing more: the adapter retains neither the system
+  prompt nor any history after a `stream()` call, so a resident engine remembers nothing.
+  Whatever Avaia accumulates as it lives needs a product-owned state contract, which does
+  not exist yet and is not this.
 
 ## What decides it
 
@@ -41,8 +47,10 @@ In order. A candidate that loses a row above never wins on a row below.
 2. **Judgement over a short structured instruction.** The world state, the allowed targets,
    and what Avaia is trying to do arrive as a small prompt. Following it is the capability
    we are actually buying parameters for.
-3. **Resident VRAM.** Held for as long as the runtime is `Active`, alongside everything else
-   the product is drawing.
+3. **Stated memory requirement against a declared budget.** The registry states what an
+   entry needs; the product declares what it is willing to spend on a surface while the
+   runtime is `Active` and the map is drawing. Both halves are claims — `WebGPU` reports no
+   memory budget, so neither is a measurement of the device in front of us.
 4. **Re-acquisition cost.** A device that lives with Avaia will lose the model to eviction
    and take it back. Those bytes are ours to serve, repeatedly, per device.
 5. **Artifacts that exist at the version we pin.** `WebLLM` `0.2.84` resolves a model to a
@@ -189,8 +197,13 @@ device fact, and three results would move it:
   already returns `None` for such a device. Per the probe's own reading, that surface gets a
   deterministic product path — not a `q4f32_1` fallback it degrades into, which would cost
   1925 MB on the weakest device we have.
-- **A `maxStorageBufferBindingSize` below what the weights need.** A loading constraint: the
-  artifacts get chunked to that ceiling. It does not change which models we chose.
+- **An adapter limit below what the runtime demands.** The pinned runtime asks a device for
+  1 GiB of `maxBufferSize` and `maxStorageBufferBindingSize`, falls back once to 256 MiB and
+  128 MiB, and throws below that; it also requires 32 KiB of `maxComputeWorkgroupStorageSize`
+  and **10** storage buffers per shader stage, where the `WebGPU` default is 8, with no
+  fallback for either. `select_local_model` refuses on those floors before it looks at the
+  catalog. The probe records only the first two, so its results table cannot currently answer
+  the last two at all — see [Foundation gaps](foundation-gaps.md).
 - **No adapter at all.** That surface never renders a local model as available, and Avaia is
   remote or absent there.
 
@@ -230,10 +243,26 @@ flag from the quantization rather than storing an opinion about it.
 
 ## Where the choice lives in code
 
-`src/inference.rs` holds the catalog and the selection rule: the served `model_id`s, the
-quantization, the VRAM figure and context window each was measured at, the derived
-`shader-f16` requirement, and `select_local_model` reading a `DeviceCapability` that was
-measured rather than assumed. It downloads nothing and probes nothing.
+`src/inference.rs` holds the catalog and the selection rule, with the three kinds of fact
+kept apart. `DeviceCapability` carries only what a probe can obtain — the `shader-f16`
+feature and four adapter limits, and no memory field, because no browser will answer that
+question. `MemoryBudget::declared` carries the product's own willingness to spend, named for
+its provenance. `runtime_floor` quotes the limits the pinned runtime refuses to start below.
+`select_local_model` returns the entry a device may be offered, or a `NoLocalModel` saying
+which of the three refused — a device below a runtime floor, a device without f16, and a
+budget under the smallest entry stay three separate facts rather than one absent value.
+
+`LocalModel` is `ai`'s own descriptor and deliberately not `WebLLM`'s `ModelRecord`: that
+record needs `model` and `model_lib` URLs, which depend on the mirror a deployment serves
+from and which this crate neither owns nor should invent. Mapping a served entry onto a
+`model_list` entry — with `required_features`, `overrides`, and integrity hashes — is the
+host adapter's work, against the pinned contract, not a shape this crate can claim to
+satisfy.
+
+`src/decision.rs` states the closed action set for one turn twice: as an EBNF grammar for a
+constrained decode, and as the parse that refuses anything outside it. The second is not
+redundant while the adapter passes no `response_format` — and it is what makes "a model may
+point at a target but may not mint one" true rather than intended.
 
 Everything else needs one seam that does not exist yet. `LocalInferenceRuntime` takes a
 model id; `WebLlmBrowserHost` takes a worker factory. Neither accepts an `AppConfig`, so
