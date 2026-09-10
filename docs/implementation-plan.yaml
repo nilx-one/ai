@@ -1,0 +1,252 @@
+# © 2026 aiaiaiai · aiaiaiai.org
+# SPDX-License-Identifier: MPL-2.0
+
+# Implementation plan for the on-device Avaia slice.
+#
+# The issues are the source of truth; this file is the same plan in one place, ordered, with
+# what blocks what. Where the two disagree, the issue wins and this file is stale.
+#
+# A step says what would make it done, not how long it takes. Nothing here is estimated in
+# time: two of the workstreams are gated on other people's repositories, and one is gated on
+# devices nobody has opened the probe on yet.
+
+slice: on-device Avaia
+tracked_by: https://github.com/nilx-one/ai/issues/16
+written_against: b869b02          # nilx-one/ai master, PR #10 merged
+
+invariants:
+  # None of these move as the plan proceeds. A step that requires one to move is a step that
+  # needs a decision first, taken deliberately and elsewhere.
+  - Model output is a proposal over targets the world layer resolved; the authority boundary
+    decides whether anything is attempted.
+  - Avaia's inference is on-device. No local model available means no local Avaia, not
+    inference somewhere else.
+  - This repository models no completion. Whether an interaction happened is 0x1 and core.
+  - Nothing is mirrored before its licence is read; serving weights is redistribution.
+  - A surface nobody probed is not a permissive surface.
+
+repositories:
+  nilx-one/ai:
+    role: the 0x1 AI runtime — catalog, selection, action vocabulary
+    reachable_from_this_session: true
+  nilx-one/web:
+    role: the client that runs the model on the device and renders its lifecycle
+    reachable_from_this_session: true
+  aiaiaiai-org/artificial-intelligence:
+    role: product-agnostic foundation — the browser adapter, the probe, the contracts
+    reachable_from_this_session: false
+    reason: >-
+      add_repo refuses cross-organization attachment; a session rooted in that repository is
+      needed to push branches or open pull requests there.
+
+landed:
+  - id: model-choice-and-decision-set
+    pr: https://github.com/nilx-one/ai/pull/10
+    merged_as: b869b02
+    delivered:
+      - docs/model-selection.md
+      - docs/foundation-gaps.md
+      - src/inference.rs      # catalog, measured device facts, declared budget, stated refusals
+      - src/decision.rs       # the closed action set as a grammar and as a parse
+
+workstreams:
+
+  - id: upstream-seams
+    issue: https://github.com/nilx-one/ai/issues/11
+    repo: aiaiaiai-org/artificial-intelligence
+    status: prepared            # patches written and verified, not yet pushed anywhere
+    blocked_by: []
+    blocks: [foundation-release, web-lifecycle, pin-and-consume]
+    why: >-
+      The pinned adapter cannot be pointed at artifacts we host, cannot be asked for a
+      constrained decode, and reports a device supported that the runtime will not start on.
+    artifacts:
+      - upstream-patches/0001-feat-refuse-a-device-the-runtime-cannot-start-on-bef.patch
+      - upstream-patches/0002-feat-let-a-product-serve-its-own-artifacts-and-const.patch
+      - upstream-patches/README.md      # both pull request bodies, ready to paste
+    steps:
+      - land 0001 first — it is smaller and it changes what an already-recorded probe result
+        means, so measurement done after it is worth more.
+      - rebase and land 0002; both touch contracts.ts, index.ts and tests/runtime.test.ts.
+      - mirror issue #11 into that repository so the rationale is readable from its side.
+    verify:
+      - npm ci
+      - npm run typecheck:web
+      - npm run test:web                              # 28 contracts + 13 webllm, none failing
+      - python3 scripts/check_architecture.py
+      - python scripts/check_repository_policy.py Apache-2.0
+    done_when: both pull requests are merged on that repository's master.
+
+  - id: foundation-release
+    issue: https://github.com/nilx-one/ai/issues/17
+    repo: aiaiaiai-org/artificial-intelligence
+    status: blocked
+    blocked_by: [upstream-seams]      # a preference, not a hard dependency — see note
+    blocks: [web-lifecycle]
+    why: >-
+      @aiaiaiai/webllm and @aiaiaiai/contracts answer 404 on the npm registry, so no browser
+      can consume the adapter at any version. The Rust half is unaffected: nilx-one/ai
+      consumes aiai-runtime by git revision.
+    note: >-
+      Ordering after the seams means nilx-one/web integrates once instead of twice. A release
+      that resolves at all still beats a perfect one that does not exist, so this is a
+      preference to state, not a gate to enforce.
+    steps:
+      - cut the release its docs/releasing.md describes, publishing both packages.
+      - replace the git-revision pin in this repository's Cargo.toml with the tag, so the
+        Rust and TypeScript halves of one contract are one release.
+    done_when: both package names resolve on the registry and Cargo.toml pins a tag.
+
+  - id: surface-measurement
+    issue: https://github.com/nilx-one/ai/issues/12
+    repo: nilx-one/web
+    status: ready               # needs devices, not code
+    blocked_by: []
+    blocks: [model-mirror]
+    why: Every surface row in the foundation's probe results reads "not measured".
+    steps:
+      - open probes/webgpu on Mobile Safari (iOS).
+      - open it inside the messaging mini-app WebView (iOS).
+      - open it inside the sandboxed activity iframe.
+      - open it on desktop Chrome as the control.
+      - paste each raw JSON record into RESULTS.md, not only the summary row.
+    read_the_raw_record_because: >-
+      the page records all four limits the runtime refuses below, but marks only the two
+      buffer limits decisive and drops the rest from its summary table. Until upstream-seams
+      lands, maxStorageBuffersPerShaderStage — 10 required against a WebGPU default of 8 — is
+      only visible in the JSON.
+    decides:
+      no_shader_f16: that surface gets a deterministic product path, never a q4f32_1 fallback.
+      limit_below_floor: nothing loads there, whatever the model.
+      no_adapter: that surface never renders a local model as available.
+    done_when: all four rows carry a record and a date.
+
+  - id: model-mirror
+    issue: https://github.com/nilx-one/ai/issues/13
+    repo: to be decided        # a manifest-and-deploy repository; weights do not belong in git
+    status: blocked
+    blocked_by: [surface-measurement]
+    blocks: [web-lifecycle]
+    steps:
+      - read the upstream cards for Qwen3-0.6B and Qwen3-1.7B; record the licence text and
+        the notices redistribution requires.
+      - measure the real artifact byte sizes; every figure in the analysis so far is a VRAM
+        requirement, not a download.
+      - serve each entry from …/<model>/resolve/<revision>/ so the URL normalizer is
+        satisfied and the revision segment is immutable.
+      - mirror the model_lib WASM too; it currently resolves to a mutable branch.
+      - record SRI hashes for config, model_lib and tokenizer; weight shards are not covered
+        by that mechanism and are pinned by the revision segment instead.
+      - declare required_features ["shader-f16"] on every entry.
+      - choose a cache backend from cache | indexeddb | cross-origin | opfs, and say why.
+      - decide whether the product requests navigator.storage.persist(), and treat a refusal
+        as a fact to render rather than to assume.
+    done_when: a device can load both entries from our origin with integrity verified.
+
+  - id: floor-experiment
+    issue: https://github.com/nilx-one/ai/issues/14
+    repo: nilx-one/ai
+    status: ready
+    blocked_by: []              # runs unconstrained until the response_format seam lands
+    blocks: []
+    why: >-
+      The catalog floor rests on a claim about behaviour: that below roughly 0.6B a
+      constrained decode produces motion rather than life. SmolLM2-360M is Apache-2.0 at
+      376 MB against the floor's 1403 MB — a quarter of the resident cost and of every
+      re-acquisition after eviction.
+    steps:
+      - fix a set of world states with the context Avaia would actually be given.
+      - drive both models through the same DecisionMenu::grammar(), holding validity constant.
+      - score the choice rather than the text, and its stability across repeats.
+      - record decode latency per decision on a mid-range device.
+    needs: a device with WebGPU; this cannot run in a headless container.
+    done_when: the floor is either confirmed or moved, with the records to show why.
+
+  - id: state-contract
+    issue: https://github.com/nilx-one/ai/issues/15
+    repo: nilx-one/ai
+    status: ready
+    blocked_by: []
+    blocks: []
+    why: >-
+      A resident engine remembers nothing: the adapter retains neither system prompt nor
+      history after a call. Without a contract of its own the slice reacts rather than lives,
+      and this is the only piece on the critical path of the product idea that depends on
+      nothing external.
+    open_questions:
+      - what an Avaia carries between decisions, as a closed type, and what it refuses to carry.
+      - where it is kept and what authenticates it; storage is this repository's trust boundary.
+      - how it survives runtime replacement without minting a different subject.
+      - what of it reaches the model, in what bounded form — a growing prompt is the failure
+        mode to design against.
+      - whether any of it survives eviction of the model itself; the two lifecycles are
+        unrelated and should not be assumed to match.
+    must_not_become:
+      - a completion record of any kind.
+      - a training-signal path, which stays inert until authorization, retention, schema
+        governance, corpus provenance and privacy budgets exist.
+
+  - id: ai-bindings
+    issue: null                 # to be filed
+    repo: nilx-one/ai
+    status: not started
+    blocked_by: []
+    blocks: [web-lifecycle]
+    why: >-
+      nilx-one/web reaches deterministic behaviour through core-wasm. This crate has no
+      browser binding at all, so nothing in a browser can call select_local_model or
+      DecisionMenu today.
+    steps:
+      - "decide the binding surface: the selection result and its refusal reasons, the
+        served catalog, and the menu's grammar and decide."
+      - keep the crate itself free of I/O; the binding is a separate target, not a dependency
+        of the library.
+    done_when: web can obtain a model id and a grammar without reimplementing either.
+
+  - id: web-lifecycle
+    issue: null                 # to be filed
+    repo: nilx-one/web
+    status: blocked
+    blocked_by: [foundation-release, ai-bindings, model-mirror]
+    blocks: []
+    why: probe → explicit load → ready is what a person actually sees of all of the above.
+    assumptions:
+      # Not yet verified against that repository's own architecture documentation.
+      - the adapter belongs behind a host-adapter contract, not called from a view.
+      - the application layer owns the port; product-app owns a view model and a view.
+    steps:
+      - "render the lifecycle as distinct facts: unavailable(reason), supported(cached),
+        loading(progress), ready, failed — never 'cached' presented as 'available'."
+      - present the download honestly, with its real size, and never call load() as a side
+        effect of probing.
+      - treat re-acquisition after eviction as the same visible act as the first install.
+      - map Spectate/Manual/Offline onto the engine's residency, interrupting and unloading
+        without losing cached artifacts.
+    done_when: a person can open the product on a measured surface and watch Avaia become
+      available, or be told plainly why it cannot.
+
+  - id: pin-and-consume
+    issue: null                 # to be filed
+    repo: nilx-one/ai
+    status: blocked
+    blocked_by: [upstream-seams, foundation-release]
+    blocks: []
+    steps:
+      - bump the foundation pin from a git revision to the release tag.
+      - delete inference::runtime_floor and take the floors from the foundation, where they
+        belong; keep the refusal, drop the copy.
+      - hand DecisionMenu::grammar() to a real response_format instead of relying on the
+        parse alone.
+    done_when: the interim copies are gone and the grammar constrains generation.
+
+critical_path:
+  # The browser end of the slice, in the order it unblocks.
+  - upstream-seams
+  - foundation-release
+  - ai-bindings
+  - web-lifecycle
+parallel:
+  # Gated on nothing outside these repositories.
+  - state-contract
+  - floor-experiment
+  - surface-measurement
