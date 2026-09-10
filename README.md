@@ -10,6 +10,12 @@ proposal != interaction completion
 simulation != BondChain fact
 ```
 
+## Local inference
+
+[Choosing the model Avaia loads](docs/model-selection.md) states which model this runtime
+selects, the constraints that decided it, what is still unmeasured, and what serving the
+model artifacts from our own host requires.
+
 ## Contributing
 
 Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md), [CLA.md](CLA.md), and [TRADEMARKS.md](TRADEMARKS.md) before submitting substantial work.
