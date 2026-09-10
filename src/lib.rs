@@ -3,10 +3,14 @@
 
 #![forbid(unsafe_code)]
 
+mod inference;
 mod routing;
 
 use aiai_runtime::ActivationState;
 
+pub use inference::{
+    DeviceCapability, LocalModel, Quantization, select_local_model, served_models,
+};
 pub use routing::{AvaiaFailureReport, FailureSink, RoutedFailure, route_failure};
 
 /// Opaque map target selected and owned by the product world layer.

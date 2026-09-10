@@ -12,9 +12,10 @@ simulation != BondChain fact
 
 ## Local inference
 
-[Choosing the model Avaia loads](docs/model-selection.md) states which model this runtime
-selects, the constraints that decided it, what is still unmeasured, and what serving the
-model artifacts from our own host requires.
+[Choosing the models Avaia loads](docs/model-selection.md) states which models this runtime
+serves, the constraints that decided them, what is still unmeasured, and what serving their
+artifacts from our own host requires. The catalog and the selection rule are
+`src/inference.rs`.
 
 ## Contributing
 
