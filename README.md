@@ -10,6 +10,19 @@ proposal != interaction completion
 simulation != BondChain fact
 ```
 
+## Local inference
+
+Avaia's model chooses where to go next, not what to say. [Choosing the models Avaia
+loads](docs/model-selection.md) states which models this runtime serves, the constraints
+that decided them, what living on a device costs when its cache is evicted, what is still
+unmeasured, and what serving the artifacts from our own host requires. The catalog and the
+selection rule are `src/inference.rs`, and the closed action set a decode may not step
+outside is `src/decision.rs`.
+
+[What belongs upstream, and what does not](docs/foundation-gaps.md) records the seams this
+slice found on the wrong side of the foundation boundary, and the vocabulary that must stay
+on this one.
+
 ## Contributing
 
 Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md), [CLA.md](CLA.md), and [TRADEMARKS.md](TRADEMARKS.md) before submitting substantial work.
