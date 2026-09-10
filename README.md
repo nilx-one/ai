@@ -21,7 +21,8 @@ outside is `src/decision.rs`.
 
 [What belongs upstream, and what does not](docs/foundation-gaps.md) records the seams this
 slice found on the wrong side of the foundation boundary, and the vocabulary that must stay
-on this one.
+on this one. [The implementation plan](docs/implementation-plan.yaml) is the same work
+ordered, with what blocks what; the issues remain the source of truth.
 
 ## Contributing
 
