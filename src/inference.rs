@@ -5,8 +5,13 @@
 //!
 //! Model selection is product work. The foundation's browser adapter loads the identifier
 //! it is handed and takes no view on which one that should be, so the catalog — two
-//! entries, both `Qwen3.5`, both `q4f16_1` — and the rule that reads a device against it
+//! entries, both `Qwen3`, both `q4f16_1` — and the rule that reads a device against it
 //! live here.
+//!
+//! What these models produce is a choice from a closed set the product already resolved,
+//! not prose a person reads. That is why the catalog is sized the way it is: a model that
+//! stays resident while an owner spectates, and that a device will lose to cache eviction
+//! and take back, is paid for in held memory and re-fetched bytes rather than in fluency.
 //!
 //! Nothing in this module downloads, probes, or loads anything. A [`DeviceCapability`]
 //! arrives already measured and a model identity leaves, or nothing does. `None` is a whole
@@ -156,13 +161,15 @@ impl DeviceCapability {
 
 /// The models this product serves, smallest first.
 ///
-/// Both are `Qwen3.5` so that one prompt profile, one conversation template, one thinking
-/// switch, and one redistribution licence cover the whole catalog. Both are `q4f16_1`
-/// because the half-precision shape is the only one a phone has the memory for, and the
-/// full-precision twin of the smaller entry already costs more than the larger one saves.
+/// Both are `Qwen3` so that one prompt profile, one conversation template, one thinking
+/// switch, and one redistribution licence cover the whole catalog — and because Apache-2.0
+/// outright is the only licence in the registry that costs a mirror nothing. Both are
+/// `q4f16_1` because the half-precision shape is the only one a phone has the memory for,
+/// and the full-precision twin of the smaller entry already costs more than the larger one
+/// saves.
 const SERVED_MODELS: [LocalModel; 2] = [
-    LocalModel::new("Qwen3.5-0.8B-q4f16_1-MLC", Quantization::Q4f16, 1630, 4096),
-    LocalModel::new("Qwen3.5-2B-q4f16_1-MLC", Quantization::Q4f16, 2246, 4096),
+    LocalModel::new("Qwen3-0.6B-q4f16_1-MLC", Quantization::Q4f16, 1404, 4096),
+    LocalModel::new("Qwen3-1.7B-q4f16_1-MLC", Quantization::Q4f16, 2037, 4096),
 ];
 
 /// Returns every model this product serves.
@@ -190,8 +197,8 @@ mod tests {
 
     use super::{DeviceCapability, LocalModel, Quantization, select_local_model, served_models};
 
-    const SMALLER: &str = "Qwen3.5-0.8B-q4f16_1-MLC";
-    const LARGER: &str = "Qwen3.5-2B-q4f16_1-MLC";
+    const SMALLER: &str = "Qwen3-0.6B-q4f16_1-MLC";
+    const LARGER: &str = "Qwen3-1.7B-q4f16_1-MLC";
 
     fn generous() -> DeviceCapability {
         DeviceCapability::measured(true, 8192)
@@ -229,14 +236,14 @@ mod tests {
 
     #[test]
     fn a_device_under_the_floor_is_offered_nothing_smaller() {
-        let device = DeviceCapability::measured(true, 1024);
+        let device = DeviceCapability::measured(true, 1200);
 
         assert_eq!(select_local_model(&device), None);
     }
 
     #[test]
     fn a_budget_between_the_two_gets_the_one_that_fits() {
-        let device = DeviceCapability::measured(true, 2048);
+        let device = DeviceCapability::measured(true, 1800);
 
         assert_eq!(
             select_local_model(&device).map(LocalModel::id),
@@ -256,7 +263,7 @@ mod tests {
     #[test]
     fn a_selection_never_exceeds_what_the_device_granted() {
         for shader_f16 in [false, true] {
-            for vram_budget_mb in [0, 1024, 1629, 1630, 2245, 2246, 4096] {
+            for vram_budget_mb in [0, 1200, 1403, 1404, 2036, 2037, 4096] {
                 let device = DeviceCapability::measured(shader_f16, vram_budget_mb);
                 if let Some(model) = select_local_model(&device) {
                     assert!(model.runs_on(&device));
@@ -279,14 +286,14 @@ mod tests {
                 {
                     "id": SMALLER,
                     "quantization": "q4f16_1",
-                    "vram_required_mb": 1630,
+                    "vram_required_mb": 1404,
                     "context_window": 4096,
                     "requires_shader_f16": true,
                 },
                 {
                     "id": LARGER,
                     "quantization": "q4f16_1",
-                    "vram_required_mb": 2246,
+                    "vram_required_mb": 2037,
                     "context_window": 4096,
                     "requires_shader_f16": true,
                 },
