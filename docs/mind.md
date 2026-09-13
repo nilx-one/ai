@@ -8,6 +8,23 @@ them may run none at all. Nothing about who Avaia is may depend on which of them
 This document states what that costs: what may travel between devices, what may not, what a
 device declares about itself, and how two devices that disagree are reconciled.
 
+## What the mind holds
+
+Durable knowledge about a person: what they work on, which language they are addressed in,
+how they like to be written to, what they have settled once and do not want asked again. It
+changes slowly, it is theirs rather than any device's, and it is the clearest case of state
+there is — none of it means anything different because a different model read it.
+
+A domain is a lens over that same identity, not a second mind. What a person is like *as a
+programmer* is a facet of who they are, kept beside the rest rather than in a separate
+place with its own truth. Facets may be consulted selectively — a narration faculty needs
+language and style and has no business reading anything else — but they are one identity,
+and nothing forks it.
+
+This is also where the boundary with the journal is easiest to see. Identity is what a
+person is; the journal is where a person stood. The first is what Avaia may carry between
+devices. The second is not, and the section below says why.
+
 ## The line
 
 > If a value's meaning depends on which model produced it, it is a cache, not state.
@@ -128,8 +145,9 @@ all is still a device this product runs on.
 
 ## Open, and not decided here
 
-- Which slots a mind actually has. This is `nilx-one/ai#15`, and it is a product question
-  before it is a data-structure one.
+- The exact slots, their vocabularies, and which faculty may read which. The shape above —
+  durable identity, consulted by facet — is settled; the field list is not, and it stays a
+  product question in `nilx-one/ai#15` before it is a data-structure one.
 - Where the encrypted log lives and what authenticates a device into it. Storage is this
   repository's trust boundary; the identity service owns who a person is.
 - Whether a device may *request* a derivation from a better-equipped device it shares an
