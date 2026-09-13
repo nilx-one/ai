@@ -19,6 +19,11 @@ unmeasured, and what serving the artifacts from our own host requires. The catal
 selection rule are `src/inference.rs`, and the closed action set a decode may not step
 outside is `src/decision.rs`.
 
+[One mind, many models](docs/mind.md) states what may travel between a person's devices
+when those devices run different models, different sizes of model, or none at all — and the
+line that decides it: if a value's meaning depends on which model produced it, it is a
+cache, not state.
+
 [What belongs upstream, and what does not](docs/foundation-gaps.md) records the seams this
 slice found on the wrong side of the foundation boundary, and the vocabulary that must stay
 on this one. [The implementation plan](docs/implementation-plan.yaml) is the same work
