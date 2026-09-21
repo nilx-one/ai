@@ -259,7 +259,8 @@ workstreams:
       - widen presence-contract's VisitRecord.source union from "self" to "self" | "avaia"
         (nilx-one/web, client-side only).
       - implement the world-layer candidate resolver that turns lit-cell adjacency into
-        MapTargetId[] for DecisionMenu (nilx-one/web).
+        MapTargetId[] for DecisionMenu, intersected with ShadeSource.litCells() so a fogged
+        cell is never offered as a candidate at Stage 1 (nilx-one/web).
       - draft the landmark/point-of-interest map.registry projection as a versioned proposal
         against nilx-one/0x1, following the shape already used for Future Creator Projections
         in 12-map-architecture.md; land it in nilx-one/core before any landmark data is read.
@@ -267,6 +268,8 @@ workstreams:
       - transport (separate, larger workstream; not a blocker and not a dependency)
       - autonomy outside SPECTATE
       - any landmark data before its projection contract is versioned and merged
+      - fog expansion via Avaia's own movement — Stage 1 confines every walk to
+        ShadeSource.litCells(); only the person's own device observations light a cell
     done_when: >-
       Avaia can walk a chain of admitted NavigateTo steps while SPECTATE, record source:"avaia"
       visits locally, and render a diff of map.registry state for newly lit cells — with

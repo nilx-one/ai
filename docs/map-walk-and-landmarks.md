@@ -42,12 +42,42 @@ Nothing below is new. The gap is that none of it has been asked to run in sequen
 
 ### 1. A walk is a chain of the existing proposal, nothing new
 
-Each step is: world layer resolves candidate `MapTargetId`s for the current position (adjacent
-cells, or discoverable targets once §3 exists) → `DecisionMenu` → Avaia picks `NavigateTo` or
-`StopNavigation` → admission → effect. No new proposal type. Landmarks, once they exist, are
-just another kind of thing a `MapTargetId` can refer to.
+Each step is: world layer resolves candidate `MapTargetId`s for the current position → `DecisionMenu`
+→ Avaia picks `NavigateTo` or `StopNavigation` → admission → effect. No new proposal type.
+Landmarks, once they exist, are just another kind of thing a `MapTargetId` can refer to. §2
+states where those candidates may come from at Stage 1.
 
-### 2. The gate stays exactly SPECTATE, and nothing wider
+### 2. Stage 1 is bounded by what is already lit
+
+The fog mechanic already has an owner: a person's own device observations, mirrored through
+`presence-geo`'s tracker, light a cell only after a real dwell (`presence-contract`'s
+`PRESENCE_DWELL_MS`, `PRESENCE_ACCURACY_GATE_M`). Stage 1 does not touch that mechanic or
+duplicate it. It only says where Avaia may stand and move inside it:
+
+- **Avaia's position originates at the person's current cell.** The character appears where the
+  owner's own last accepted observation placed them — not at an arbitrary point, and not
+  requiring a separate spawn contract.
+- **The candidate set for every `DecisionMenu` is `ShadeSource.litCells()` and nothing past its
+  boundary.** The world layer resolving `MapTargetId`s (§1) must intersect its candidates with
+  the already-lit set before Avaia ever sees them. A fogged (grey) cell is not merely a target
+  Avaia would be refused for choosing — it is never constructed as a candidate at all.
+- **A mark — a landmark once one exists (see "what discovery needs" below), or any other point
+  Avaia's walk could reference — may only be placed inside a lit cell**, for the same reason:
+  the grey zone has no confirmed geography for this device to reason about yet.
+- **Avaia's own movement must not light new cells.** This is not free to assume: `map-shade`'s
+  `createShadeSource` lights whatever cell a new `VisitRecord` names, regardless of `source`
+  (`presence-idb/src/index.ts`, the `store.subscribe` callback in `createShadeSource`). Because
+  every candidate is already lit by construction (the point above), an admitted `NavigateTo`
+  step can only ever write a `source: "avaia"` record into a cell that was lit before the step
+  was offered — so this invariant holds by construction, not by a special case added to
+  `map-shade`. It is stated here because it would silently stop holding if a later change ever
+  let candidate resolution reach past the lit boundary.
+
+Only the person's own movement expands the lit boundary at Stage 1. Whether a later stage lets
+Avaia's own walk reveal fog is an explicit, separate product decision — not a default this
+document or its code picks by omission.
+
+### 3. The gate stays exactly SPECTATE, and nothing wider
 
 `AvaiaControlMode::Spectate` is already the only mode that reaches `ActivationState::Active`.
 This workstream adds no second gate and no background-life path: leaving SPECTATE mid-walk
@@ -60,7 +90,7 @@ text says only that authorization is bounded by contract and is not unlimited au
 (`device-runtime-and-control.md`, DRC6) — it does not yet say which of these two shapes a walk
 takes. This document does not resolve it.
 
-### 3. Observation is a cache until someone decides to make it durable
+### 4. Observation is a cache until someone decides to make it durable
 
 Per [`mind.md`](mind.md): a value whose meaning depends on which model produced it is a cache,
 not state. "What Avaia saw" rendered live during a walk is exactly that — per-device,
@@ -74,13 +104,13 @@ separate governance contract (`presence-journal-lifecycle.md`, the `artificial-b
 signal.md` egress gate). Widening the TypeScript union from `"self"` to `"self" | "avaia"` is
 the only concrete code change this implies, and it is client-side only.
 
-### 4. "What's new" is a diff against the caller's own last look
+### 5. "What's new" is a diff against the caller's own last look
 
 Because `map.registry` is reconstructable public state, "new since Avaia last looked at this
 cell" is a local diff: the current projection for a lit cell against whatever this device last
 cached for it. No protocol change is required to compute this over the two projections that
 exist today (`physical_presences[]`, `digital_presence?`). It becomes a richer diff the moment
-§5 exists, and not before.
+a landmark projection exists, and not before.
 
 ## Design: what discovery needs that does not exist yet
 
@@ -124,6 +154,9 @@ already says for creator projections not yet published (`12-map-architecture.md`
 - **Training-signal egress** from any walk-derived observation.
 - **A protocol change implemented from this repository.** The landmark projection is drafted
   and reviewed in `nilx-one/0x1`; this repository only states what it would consume.
+- **Expanding the fog itself through Avaia's own movement.** At Stage 1, only the person's own
+  device observations light a cell. Whether Avaia's walk should ever do the same is left to a
+  later stage, deliberately.
 
 ## Open questions
 
@@ -150,6 +183,10 @@ Stated so this document does not silently pick an answer by omission:
 6. **MWL6.** No landmark, artifact, or point-of-interest data is published or consumed before a
    versioned projection contract exists in `nilx-one/0x1`.
 7. **MWL7.** Transport is not part of this workstream under any of its steps.
+8. **MWL8.** At Stage 1, every `DecisionMenu` candidate, and every point a mark may reference,
+   is drawn from `ShadeSource.litCells()`; a fogged cell is never constructed as a candidate.
+9. **MWL9.** At Stage 1, only a person's own device observations light a cell. An admitted
+   `NavigateTo` step must never be the first thing to light the cell it targets.
 
 ## Related
 
