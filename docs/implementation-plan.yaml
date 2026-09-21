@@ -239,6 +239,95 @@ workstreams:
         parse alone.
     done_when: the interim copies are gone and the grammar constrains generation.
 
+  - id: map-walk-and-landmarks
+    issue: null                 # to be filed
+    repo: nilx-one/ai           # also touches nilx-one/web; the landmark projection itself
+                                 # is drafted and reviewed in nilx-one/0x1, not implemented here
+    status: not started
+    blocked_by: [state-contract, ai-bindings, web-lifecycle]
+    blocks: []
+    why: >-
+      A walk is a chain of the DecisionMenu/NavigateTo proposal this repository already has,
+      run while SPECTATE, against candidate targets a world layer resolves and observation
+      persisted through the already-reserved VisitRecord source:"avaia" slot. None of it can
+      be exercised in a browser before the on-device slice itself is wired up, so this sits
+      downstream of the critical path rather than on it.
+    doc: docs/map-walk-and-landmarks.md
+    steps:
+      - resolve the two open product questions the doc states rather than picks — per-step
+        admission vs. a bounded walk-delegation scope, and art_register's moderation/expiry
+        rules (its authorship direction is already narrowed to OSM-seeded plus manual).
+      - widen presence-contract's VisitRecord.source union from "self" to "self" | "avaia"
+        (nilx-one/web, client-side only).
+      - implement the world-layer candidate resolver that turns lit-cell adjacency into
+        MapTargetId[] for DecisionMenu, intersected with ShadeSource.litCells() so a fogged
+        cell is never offered as a candidate at Stage 1 (nilx-one/web).
+      - draft the landmark/point-of-interest map.registry projection as a versioned proposal
+        against nilx-one/0x1, following the shape already used for Future Creator Projections
+        in 12-map-architecture.md; land it in nilx-one/core before any landmark data is read.
+    excludes:
+      - transport (separate, larger workstream; not a blocker and not a dependency)
+      - autonomy outside SPECTATE
+      - any landmark data before its projection contract is versioned and merged
+      - fog expansion via Avaia's own movement — Stage 1 confines every walk to
+        ShadeSource.litCells(); only the person's own device observations light a cell
+    done_when: >-
+      Avaia can walk a chain of admitted NavigateTo steps while SPECTATE, record source:"avaia"
+      visits locally, and render a diff of map.registry state for newly lit cells — with
+      landmarks folded in once, and only once, their projection contract exists.
+
+  - id: art-register
+    issue: null                 # to be filed
+    repo: nilx-one/web          # a server table + read endpoint, precedent bond_locations in
+                                 # services/identity; no protocol change, no dependency on the
+                                 # on-device Avaia slice
+    status: not started
+    blocked_by: []
+    blocks: []                  # informs, but does not gate, map-walk-and-landmarks's
+                                 # landmark-projection draft step
+    why: >-
+      A walk with nothing to discover is a demo. art_register is the product-owned content
+      source a future landmark map.registry projection would publish from: a live server table
+      (table name, likely art_reg), OSM-seeded plus admin-curated, rendered unconditionally —
+      fog only gates interaction, never visibility — and kept apart from protocol truth until
+      MWL6 in map-walk-and-landmarks.md is satisfied.
+    doc: map-walk-and-landmarks.md#storage-a-server-side-table-not-a-shipped-bundle
+    steps:
+      - draft the art_register row shape and its migration, following bond_locations
+        (services/identity/migrations/0009_bond_location_control.sql) as precedent; decide
+        which service owns the table — a new one, or identity extended with a second domain.
+      - build a public read endpoint that serves entries for client rendering unconditionally,
+        with no awareness of any device's local fog state, mirroring location_control.rs's
+        axum + sqlx shape.
+      - gate every write behind BondAccessRole::Admin (services/identity/src/
+        location_control.rs's role_for_pub_dress), reusing that authorization boundary rather
+        than inventing a second admin mechanism.
+      - run inspect-basemap.sh against the real deployed archive and record the pois layer's
+        actual declared fields; do not assume OSM tourism/historic/heritage tags are present
+        until the archive's own vector_layers declaration confirms them.
+      - decide the OSM tag allowlist for landmark candidates against those confirmed fields —
+        candidates to check are historic=*, tourism=attraction|artwork|viewpoint|museum,
+        memorial=*, heritage=*. Seed the table from this extraction as an offline ETL step,
+        never a live per-request query against OSM.
+      - build the client render path so every entry the read endpoint returns for the viewport
+        is drawn, fog included; wire tap handling and DecisionMenu candidate resolution to
+        intersect with ShadeSource.litCells() so only lit landmarks respond.
+      - design a manual-curation editor (add / correct / remove) behind the admin gate above,
+        reusing the map-point-selection interaction already proven in
+        bond-artificial-position-settings.tsx (MapPointSelection / MapRenderer) for the picker,
+        without reusing that feature's disclosure-override semantics or storage.
+    excludes:
+      - offering any art_register row to DecisionMenu, or asserting it as map.registry content,
+        BondChain, presence, or attendance, before the landmark projection contract (MWL6)
+        exists — rendering the row as a marker is not such an assertion and is not excluded
+      - a live runtime query against OSM or any third-party service; extraction is an offline
+        ETL step that seeds the table, mirroring bootstrap-basemap.sh's own posture
+    done_when: >-
+      art_register is a live server table with a public unconditional read endpoint and an
+      admin-gated write path, seeded from a confirmed OSM pois extraction plus manual entries,
+      rendering on every client regardless of fog while remaining demonstrably unreachable from
+      Avaia's decision surface until the landmark projection contract exists.
+
 critical_path:
   # The browser end of the slice, in the order it unblocks.
   - upstream-seams
@@ -250,3 +339,4 @@ parallel:
   - state-contract
   - floor-experiment
   - surface-measurement
+  - art-register
