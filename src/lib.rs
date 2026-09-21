@@ -6,6 +6,7 @@
 mod decision;
 mod inference;
 mod routing;
+mod state;
 
 use aiai_runtime::ActivationState;
 
@@ -15,6 +16,7 @@ pub use inference::{
     select_local_model, served_models,
 };
 pub use routing::{AvaiaFailureReport, FailureSink, RoutedFailure, route_failure};
+pub use state::{AvaiaIntent, AvaiaModelContext, AvaiaPauseReason, AvaiaState, AVAIA_STATE_SCHEMA_VERSION};
 
 /// Opaque map target selected and owned by the product world layer.
 ///
