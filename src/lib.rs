@@ -9,6 +9,7 @@ mod routing;
 mod state;
 
 use aiai_runtime::ActivationState;
+use serde::{Deserialize, Serialize};
 
 pub use decision::{DecisionError, DecisionMenu, DecisionMenuError, StopAction};
 pub use inference::{
@@ -23,7 +24,7 @@ pub use state::{
 /// Opaque map target selected and owned by the product world layer.
 ///
 /// Avaia may refer to a target but does not mint or reinterpret its coordinates.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct MapTargetId(String);
 
 impl MapTargetId {
@@ -49,7 +50,7 @@ impl MapTargetId {
 ///
 /// This value is computation, not authority. Consumers must route it through the
 /// 0x1 authority boundary before any world mutation is attempted.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AvaiaActionProposal {
     NavigateTo { target: MapTargetId },
     StopNavigation,
