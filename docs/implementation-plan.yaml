@@ -255,7 +255,8 @@ workstreams:
     doc: docs/map-walk-and-landmarks.md
     steps:
       - resolve the two open product questions the doc states rather than picks — per-step
-        admission vs. a bounded walk-delegation scope, and who authors landmarks.
+        admission vs. a bounded walk-delegation scope, and art_register's moderation/expiry
+        rules (its authorship direction is already narrowed to OSM-seeded plus manual).
       - widen presence-contract's VisitRecord.source union from "self" to "self" | "avaia"
         (nilx-one/web, client-side only).
       - implement the world-layer candidate resolver that turns lit-cell adjacency into
@@ -275,6 +276,46 @@ workstreams:
       visits locally, and render a diff of map.registry state for newly lit cells — with
       landmarks folded in once, and only once, their projection contract exists.
 
+  - id: art-register
+    issue: null                 # to be filed
+    repo: nilx-one/web          # a content pipeline beside bootstrap-basemap.sh; no protocol
+                                 # change and no dependency on the on-device Avaia slice
+    status: not started
+    blocked_by: []
+    blocks: []                  # informs, but does not gate, map-walk-and-landmarks's
+                                 # landmark-projection draft step
+    why: >-
+      A walk with nothing to discover is a demo. art_register is the product-owned content
+      source a future landmark map.registry projection would publish from: OSM extraction off
+      the basemap archive's own pois source layer, plus manually curated entries, kept
+      strictly apart from protocol truth until MWL6 in map-walk-and-landmarks.md is satisfied.
+    doc: map-walk-and-landmarks.md#art_register-where-landmark-content-comes-from-kept-apart-from-where-it-becomes-truth
+    steps:
+      - run inspect-basemap.sh against the real deployed archive and record the pois layer's
+        actual declared fields; do not assume OSM tourism/historic/heritage tags are present
+        until the archive's own vector_layers declaration confirms them.
+      - decide the OSM tag allowlist for landmark candidates against those confirmed fields —
+        candidates to check are historic=*, tourism=attraction|artwork|viewpoint|museum,
+        memorial=*, heritage=*.
+      - build an extraction step, beside bootstrap-basemap.sh, that filters the pois layer by
+        that allowlist into a versioned seed dataset.
+      - design a manual-curation editor (add / correct / remove) reusing the map-point-
+        selection interaction already proven in bond-artificial-position-settings.tsx
+        (MapPointSelection / MapRenderer), without reusing its disclosure-override semantics
+        or storage.
+      - version and store the merged OSM-seed-plus-manual register as a reviewable artifact,
+        following the signed/versioned regional-bundle delivery model 12-map-architecture.md
+        already describes for map state.
+    excludes:
+      - offering any art_register content to DecisionMenu, or rendering it as map state,
+        before the landmark projection contract (MWL6) exists
+      - a live runtime query against OSM or any third-party service; extraction is build-time
+        or admin-time only, mirroring bootstrap-basemap.sh's own posture
+    done_when: >-
+      art_register holds a reviewable, versioned OSM-seeded and manually curated candidate
+      set, built against the real archive's confirmed pois fields, and demonstrably not
+      reachable from Avaia's decision surface or the client's rendered map state.
+
 critical_path:
   # The browser end of the slice, in the order it unblocks.
   - upstream-seams
@@ -286,3 +327,4 @@ parallel:
   - state-contract
   - floor-experiment
   - surface-measurement
+  - art-register

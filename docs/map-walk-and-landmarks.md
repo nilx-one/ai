@@ -145,6 +145,45 @@ Until a versioned landmark projection contract lands in `nilx-one/0x1` and is im
 `nilx-one/core`, the correct implementation here is: no landmark data, same as the specification
 already says for creator projections not yet published (`12-map-architecture.md` invariant 14).
 
+### `art_register`: where landmark content comes from, kept apart from where it becomes truth
+
+The protocol projection above answers what a landmark *is*, once it is allowed to exist. It
+does not answer where its content comes from before anyone has proposed a single entry. That
+content side is a separate, smaller piece this workstream can scope now, because it commits
+`0x1` to nothing: `art_register` is a product-owned content register, not protocol truth, and
+nothing in it reaches a person, a client's map state, or `DecisionMenu` until it has crossed
+the landmark-projection gate above.
+
+Two sources feed it:
+
+- **OSM extraction.** The basemap archive already carries a `pois` source layer
+  (`nilx-one/web` `docs/map-data.md`) — the published style reads no attributes from it today
+  (`deploy/web/map/0.1.0/style.json`'s `pois` layer is a bare circle keyed only on
+  `source-layer`), so its declared fields are unconfirmed rather than assumed. The existing
+  discipline in this codebase already refuses to guess: `deploy/web/inspect-basemap.sh` prints
+  what the real archive actually declares, and a filter on a field it does not carry "quietly
+  disappears" rather than erroring (`map-data.md`). Building `art_register` starts by running
+  that inspection against the deployed archive and reading its `pois` fields off the output —
+  not off generic OpenStreetMap tagging documentation — before any allowlist (candidate tags:
+  `historic=*`, `tourism=attraction|artwork|viewpoint|museum`, `memorial=*`, `heritage=*`) is
+  written down as fact.
+- **Manual entries.** Additions, corrections, and removals a person curates directly. This
+  workstream does not reuse `BondArtificialPositionSettings`'s disclosure-override code or its
+  storage — that feature answers a different question, who sees a Bond's declared position —
+  but its map-point-selection interaction (`MapPointSelection` / `MapRenderer`, "tap a point on
+  the map") is the proven pattern to build a landmark-entry editor against, rather than a new
+  interaction invented for this.
+
+`art_register` is a build-time or admin-time artifact, not a live query against OSM or any
+third-party service at request time — the same posture the basemap pipeline already takes
+(`bootstrap-basemap.sh` fetches a dated build once, not per request), and it is versioned and
+reviewable the way `12-map-architecture.md` already describes regional map state being
+delivered: through signed, versioned bundles, not an always-live feed.
+
+This narrows open question 2 below without closing it: authorship for a first `art_register`
+is operator-curated (OSM-seeded plus manual), not creator-authored in the existing business
+sense. Moderation workflow, review responsibility, and expiry for manual entries remain open.
+
 ## Explicitly out of scope for this workstream
 
 - **Transport.** Named separately in `map-data.md`; large enough to need its own workstream and
@@ -163,9 +202,10 @@ already says for creator projections not yet published (`12-map-architecture.md`
 Stated so this document does not silently pick an answer by omission:
 
 1. Per-step admission versus a bounded walk-delegation scope (§2).
-2. Who authors landmarks, and under what moderation and expiry rules — the same open items
-   `12-map-architecture.md` already lists for creator projections, applied to a curated-content
-   case instead of a creator-authored one.
+2. Moderation workflow, review responsibility, and expiry for `art_register` entries — the
+   authorship direction itself (OSM-seeded plus manual) is narrowed above, but the same open
+   items `12-map-architecture.md` already lists for creator projections (who moderates, what
+   expires, what a rejection looks like) are not resolved by naming the source.
 3. Whether a landmark projection is versioned independently of `physical_presences[]` /
    `digital_presence?` or folds into a fourth field of the same `map.registry` shape.
 
@@ -187,6 +227,9 @@ Stated so this document does not silently pick an answer by omission:
    is drawn from `ShadeSource.litCells()`; a fogged cell is never constructed as a candidate.
 9. **MWL9.** At Stage 1, only a person's own device observations light a cell. An admitted
    `NavigateTo` step must never be the first thing to light the cell it targets.
+10. **MWL10.** `art_register` content, OSM-seeded or manual, is product data, not protocol
+    truth: it must not be offered to `DecisionMenu`, rendered as map state, or treated as
+    `map.registry` content until it has crossed the landmark projection gate (MWL6).
 
 ## Related
 
