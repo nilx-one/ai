@@ -34,7 +34,9 @@ pub struct AvaiaState {
 }
 
 impl Default for AvaiaState {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl AvaiaState {
@@ -73,7 +75,7 @@ pub struct AvaiaModelContext {
 
 #[cfg(test)]
 mod tests {
-    use super::{AvaiaIntent, AvaiaPauseReason, AvaiaState, AVAIA_STATE_SCHEMA_VERSION};
+    use super::{AVAIA_STATE_SCHEMA_VERSION, AvaiaIntent, AvaiaPauseReason, AvaiaState};
     use crate::{AvaiaActionProposal, MapTargetId};
 
     fn target(value: &str) -> MapTargetId {
@@ -95,7 +97,9 @@ mod tests {
         let state = AvaiaState {
             schema_version: AVAIA_STATE_SCHEMA_VERSION,
             intent: Some(AvaiaIntent::NavigateTo(target("target-7"))),
-            last_proposal: Some(AvaiaActionProposal::NavigateTo { target: target("target-7") }),
+            last_proposal: Some(AvaiaActionProposal::NavigateTo {
+                target: target("target-7"),
+            }),
             pause_reason: Some(AvaiaPauseReason::RuntimeUnavailable),
         };
         let bytes = serde_json::to_vec(&state).expect("serialize");
