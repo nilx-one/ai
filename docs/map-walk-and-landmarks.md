@@ -22,7 +22,7 @@ This document scopes a first slice of the first two, against the map projections
 exist, and states what the third needs before it can exist at all. It deliberately excludes
 transport: routing, vehicles, and transit state are a separate, larger capability with their
 own authority and rendering questions, already named as out of scope for basemap work in
-[`nilx-one/web`'s map data doc](https://github.com/nilx-one/web/blob/main/docs/map-data.md).
+[`nilx-one/web`'s map data doc](https://github.com/nilx-one/web/blob/master/docs/map-data.md).
 Nothing here blocks on transport, and this workstream must not grow to include it.
 
 ## What already exists
@@ -283,8 +283,8 @@ Stated so this document does not silently pick an answer by omission:
 - [`nilx-one/core` — Presence journal](https://github.com/nilx-one/core/blob/main/docs/presence-journal.md)
 - [`nilx-one/0x1` — Map Architecture](https://github.com/nilx-one/0x1/blob/master/documents/12-map-architecture.md)
 - [`nilx-one/0x1` — Device Runtime and Control](https://github.com/nilx-one/0x1/blob/master/documents/artificial-bonds/device-runtime-and-control.md)
-- [`nilx-one/web` — Map data](https://github.com/nilx-one/web/blob/main/docs/map-data.md)
-- [`nilx-one/web` — Presence journal lifecycle](https://github.com/nilx-one/web/blob/main/docs/presence-journal-lifecycle.md)
+- [`nilx-one/web` — Map data](https://github.com/nilx-one/web/blob/master/docs/map-data.md)
+- [`nilx-one/web` — Presence journal lifecycle](https://github.com/nilx-one/web/blob/master/docs/presence-journal-lifecycle.md)
 
 ---
 
