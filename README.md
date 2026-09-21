@@ -29,6 +29,11 @@ slice found on the wrong side of the foundation boundary, and the vocabulary tha
 on this one. [The implementation plan](docs/implementation-plan.yaml) is the same work
 ordered, with what blocks what; the issues remain the source of truth.
 
+[Avaia walks the map, only while spectating](docs/map-walk-and-landmarks.md) scopes a walk as
+a chain of the existing NavigateTo proposal, states what a landmark projection would need from
+`nilx-one/0x1` before there is anything to discover, and names what it deliberately excludes —
+transport, and any autonomy outside SPECTATE.
+
 ## Contributing
 
 Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md), [CLA.md](CLA.md), and [TRADEMARKS.md](TRADEMARKS.md) before submitting substantial work.

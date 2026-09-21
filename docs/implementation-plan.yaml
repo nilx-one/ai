@@ -239,6 +239,39 @@ workstreams:
         parse alone.
     done_when: the interim copies are gone and the grammar constrains generation.
 
+  - id: map-walk-and-landmarks
+    issue: null                 # to be filed
+    repo: nilx-one/ai           # also touches nilx-one/web; the landmark projection itself
+                                 # is drafted and reviewed in nilx-one/0x1, not implemented here
+    status: not started
+    blocked_by: [state-contract, ai-bindings, web-lifecycle]
+    blocks: []
+    why: >-
+      A walk is a chain of the DecisionMenu/NavigateTo proposal this repository already has,
+      run while SPECTATE, against candidate targets a world layer resolves and observation
+      persisted through the already-reserved VisitRecord source:"avaia" slot. None of it can
+      be exercised in a browser before the on-device slice itself is wired up, so this sits
+      downstream of the critical path rather than on it.
+    doc: docs/map-walk-and-landmarks.md
+    steps:
+      - resolve the two open product questions the doc states rather than picks — per-step
+        admission vs. a bounded walk-delegation scope, and who authors landmarks.
+      - widen presence-contract's VisitRecord.source union from "self" to "self" | "avaia"
+        (nilx-one/web, client-side only).
+      - implement the world-layer candidate resolver that turns lit-cell adjacency into
+        MapTargetId[] for DecisionMenu (nilx-one/web).
+      - draft the landmark/point-of-interest map.registry projection as a versioned proposal
+        against nilx-one/0x1, following the shape already used for Future Creator Projections
+        in 12-map-architecture.md; land it in nilx-one/core before any landmark data is read.
+    excludes:
+      - transport (separate, larger workstream; not a blocker and not a dependency)
+      - autonomy outside SPECTATE
+      - any landmark data before its projection contract is versioned and merged
+    done_when: >-
+      Avaia can walk a chain of admitted NavigateTo steps while SPECTATE, record source:"avaia"
+      visits locally, and render a diff of map.registry state for newly lit cells — with
+      landmarks folded in once, and only once, their projection contract exists.
+
 critical_path:
   # The browser end of the slice, in the order it unblocks.
   - upstream-seams
