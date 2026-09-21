@@ -278,43 +278,55 @@ workstreams:
 
   - id: art-register
     issue: null                 # to be filed
-    repo: nilx-one/web          # a content pipeline beside bootstrap-basemap.sh; no protocol
-                                 # change and no dependency on the on-device Avaia slice
+    repo: nilx-one/web          # a server table + read endpoint, precedent bond_locations in
+                                 # services/identity; no protocol change, no dependency on the
+                                 # on-device Avaia slice
     status: not started
     blocked_by: []
     blocks: []                  # informs, but does not gate, map-walk-and-landmarks's
                                  # landmark-projection draft step
     why: >-
       A walk with nothing to discover is a demo. art_register is the product-owned content
-      source a future landmark map.registry projection would publish from: OSM extraction off
-      the basemap archive's own pois source layer, plus manually curated entries, kept
-      strictly apart from protocol truth until MWL6 in map-walk-and-landmarks.md is satisfied.
-    doc: map-walk-and-landmarks.md#art_register-where-landmark-content-comes-from-kept-apart-from-where-it-becomes-truth
+      source a future landmark map.registry projection would publish from: a live server table
+      (table name, likely art_reg), OSM-seeded plus admin-curated, rendered unconditionally —
+      fog only gates interaction, never visibility — and kept apart from protocol truth until
+      MWL6 in map-walk-and-landmarks.md is satisfied.
+    doc: map-walk-and-landmarks.md#storage-a-server-side-table-not-a-shipped-bundle
     steps:
+      - draft the art_register row shape and its migration, following bond_locations
+        (services/identity/migrations/0009_bond_location_control.sql) as precedent; decide
+        which service owns the table — a new one, or identity extended with a second domain.
+      - build a public read endpoint that serves entries for client rendering unconditionally,
+        with no awareness of any device's local fog state, mirroring location_control.rs's
+        axum + sqlx shape.
+      - gate every write behind BondAccessRole::Admin (services/identity/src/
+        location_control.rs's role_for_pub_dress), reusing that authorization boundary rather
+        than inventing a second admin mechanism.
       - run inspect-basemap.sh against the real deployed archive and record the pois layer's
         actual declared fields; do not assume OSM tourism/historic/heritage tags are present
         until the archive's own vector_layers declaration confirms them.
       - decide the OSM tag allowlist for landmark candidates against those confirmed fields —
         candidates to check are historic=*, tourism=attraction|artwork|viewpoint|museum,
-        memorial=*, heritage=*.
-      - build an extraction step, beside bootstrap-basemap.sh, that filters the pois layer by
-        that allowlist into a versioned seed dataset.
-      - design a manual-curation editor (add / correct / remove) reusing the map-point-
-        selection interaction already proven in bond-artificial-position-settings.tsx
-        (MapPointSelection / MapRenderer), without reusing its disclosure-override semantics
-        or storage.
-      - version and store the merged OSM-seed-plus-manual register as a reviewable artifact,
-        following the signed/versioned regional-bundle delivery model 12-map-architecture.md
-        already describes for map state.
+        memorial=*, heritage=*. Seed the table from this extraction as an offline ETL step,
+        never a live per-request query against OSM.
+      - build the client render path so every entry the read endpoint returns for the viewport
+        is drawn, fog included; wire tap handling and DecisionMenu candidate resolution to
+        intersect with ShadeSource.litCells() so only lit landmarks respond.
+      - design a manual-curation editor (add / correct / remove) behind the admin gate above,
+        reusing the map-point-selection interaction already proven in
+        bond-artificial-position-settings.tsx (MapPointSelection / MapRenderer) for the picker,
+        without reusing that feature's disclosure-override semantics or storage.
     excludes:
-      - offering any art_register content to DecisionMenu, or rendering it as map state,
-        before the landmark projection contract (MWL6) exists
-      - a live runtime query against OSM or any third-party service; extraction is build-time
-        or admin-time only, mirroring bootstrap-basemap.sh's own posture
+      - offering any art_register row to DecisionMenu, or asserting it as map.registry content,
+        BondChain, presence, or attendance, before the landmark projection contract (MWL6)
+        exists — rendering the row as a marker is not such an assertion and is not excluded
+      - a live runtime query against OSM or any third-party service; extraction is an offline
+        ETL step that seeds the table, mirroring bootstrap-basemap.sh's own posture
     done_when: >-
-      art_register holds a reviewable, versioned OSM-seeded and manually curated candidate
-      set, built against the real archive's confirmed pois fields, and demonstrably not
-      reachable from Avaia's decision surface or the client's rendered map state.
+      art_register is a live server table with a public unconditional read endpoint and an
+      admin-gated write path, seeded from a confirmed OSM pois extraction plus manual entries,
+      rendering on every client regardless of fog while remaining demonstrably unreachable from
+      Avaia's decision surface until the landmark projection contract exists.
 
 critical_path:
   # The browser end of the slice, in the order it unblocks.

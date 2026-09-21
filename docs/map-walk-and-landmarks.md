@@ -61,9 +61,13 @@ duplicate it. It only says where Avaia may stand and move inside it:
   boundary.** The world layer resolving `MapTargetId`s (§1) must intersect its candidates with
   the already-lit set before Avaia ever sees them. A fogged (grey) cell is not merely a target
   Avaia would be refused for choosing — it is never constructed as a candidate at all.
-- **A mark — a landmark once one exists (see "what discovery needs" below), or any other point
-  Avaia's walk could reference — may only be placed inside a lit cell**, for the same reason:
-  the grey zone has no confirmed geography for this device to reason about yet.
+- **Rendering a landmark and letting Avaia (or a person) act on it are two different gates.**
+  A landmark from `art_register` (see "what discovery needs" below) renders on the map
+  everywhere, fog included — the marker itself is public basemap-like presentation, the same
+  way `pois` circles render without regard to anyone's personal presence history. What fog
+  gates is interaction: a landmark inside a fogged cell is not tappable by a person and is
+  never constructed as a `DecisionMenu` candidate for Avaia. Visible-but-inert in the grey
+  zone, fully interactive once the cell lights.
 - **Avaia's own movement must not light new cells.** This is not free to assume: `map-shade`'s
   `createShadeSource` lights whatever cell a new `VisitRecord` names, regardless of `source`
   (`presence-idb/src/index.ts`, the `store.subscribe` callback in `createShadeSource`). Because
@@ -154,35 +158,65 @@ content side is a separate, smaller piece this workstream can scope now, because
 nothing in it reaches a person, a client's map state, or `DecisionMenu` until it has crossed
 the landmark-projection gate above.
 
-Two sources feed it:
+### Storage: a server-side table, not a shipped bundle
 
-- **OSM extraction.** The basemap archive already carries a `pois` source layer
-  (`nilx-one/web` `docs/map-data.md`) — the published style reads no attributes from it today
+`art_register` (table name, likely `art_reg`) is a live, queryable server-side resource that
+resolves places on the map — a *table*, not a versioned client bundle. The closest thing
+already in the codebase is `bond_locations`
+(`services/identity/migrations/0009_bond_location_control.sql`): one small table, one repository,
+one read endpoint, `axum` + `sqlx` over SQLite. `art_register` follows that shape rather than
+inventing a second storage pattern:
+
+- rows resolve a place: at minimum a cell, a display point, and whatever a landmark needs to
+  render — the exact columns wait on the same `0x1` shape decision the landmark projection
+  above states requirements for, so this table's schema is drafted alongside that shape, not
+  ahead of it;
+- a public read endpoint serves entries for client rendering, unconditionally — the endpoint
+  does not know about any one device's fog, because fog is `presence-idb`'s local, per-device
+  state and this table is shared, server-side, public;
+- writes are gated behind `BondAccessRole::Admin`
+  (`services/identity/src/location_control.rs`'s `role_for_pub_dress`), the same authorization
+  boundary `bond_locations`' manual mode already uses — not a new admin mechanism invented for
+  this table. Whether every write funnels through that endpoint or some through a separate
+  ingestion path (OSM seeding below) is an implementation choice for whichever service ends up
+  owning the table — a new one, or `identity` extended — and is left open.
+
+Two sources feed it, seeded differently:
+
+- **OSM extraction**, as an offline ETL step, not a live per-request call to any third-party
+  service. The basemap archive already carries a `pois` source layer (`nilx-one/web`
+  `docs/map-data.md`) — the published style reads no attributes from it today
   (`deploy/web/map/0.1.0/style.json`'s `pois` layer is a bare circle keyed only on
   `source-layer`), so its declared fields are unconfirmed rather than assumed. The existing
   discipline in this codebase already refuses to guess: `deploy/web/inspect-basemap.sh` prints
   what the real archive actually declares, and a filter on a field it does not carry "quietly
-  disappears" rather than erroring (`map-data.md`). Building `art_register` starts by running
-  that inspection against the deployed archive and reading its `pois` fields off the output —
-  not off generic OpenStreetMap tagging documentation — before any allowlist (candidate tags:
+  disappears" rather than erroring (`map-data.md`). Building the seed starts by running that
+  inspection against the deployed archive and reading its `pois` fields off the output — not
+  off generic OpenStreetMap tagging documentation — before any allowlist (candidate tags:
   `historic=*`, `tourism=attraction|artwork|viewpoint|museum`, `memorial=*`, `heritage=*`) is
-  written down as fact.
-- **Manual entries.** Additions, corrections, and removals a person curates directly. This
-  workstream does not reuse `BondArtificialPositionSettings`'s disclosure-override code or its
-  storage — that feature answers a different question, who sees a Bond's declared position —
-  but its map-point-selection interaction (`MapPointSelection` / `MapRenderer`, "tap a point on
-  the map") is the proven pattern to build a landmark-entry editor against, rather than a new
-  interaction invented for this.
+  written down as fact. The extraction writes rows into the table; it does not query OSM live
+  on the client's behalf.
+- **Manual entries**, written through the admin-gated path above. The map-point-selection
+  interaction already proven in `BondArtificialPositionSettings`
+  (`MapPointSelection` / `MapRenderer`, "tap a point on the map") is a reasonable pattern for
+  the picker UI, without reusing that feature's disclosure-override code or storage — it
+  answers a different question, who sees a Bond's declared position.
 
-`art_register` is a build-time or admin-time artifact, not a live query against OSM or any
-third-party service at request time — the same posture the basemap pipeline already takes
-(`bootstrap-basemap.sh` fetches a dated build once, not per request), and it is versioned and
-reviewable the way `12-map-architecture.md` already describes regional map state being
-delivered: through signed, versioned bundles, not an always-live feed.
+### Render is unconditional; interaction is not
+
+This is the point Stage 1's fog design (§2) depends on, stated once here so it is not
+duplicated: the read endpoint above returns every `art_register` entry a client's viewport
+covers, fog or no fog, because the table carries no notion of any one device's local presence
+journal. A client renders every returned landmark, including inside its own shaded area. What
+changes at the fog boundary is entirely client-side and entirely about interaction: a landmark
+whose cell is not in `ShadeSource.litCells()` renders but does not respond to a tap, and is
+never passed into world-layer candidate resolution for `DecisionMenu`. The gate lives in the
+client's interaction handling, not in what the server returns.
 
 This narrows open question 2 below without closing it: authorship for a first `art_register`
-is operator-curated (OSM-seeded plus manual), not creator-authored in the existing business
-sense. Moderation workflow, review responsibility, and expiry for manual entries remain open.
+is operator-curated (OSM-seeded plus manual, admin-gated), not creator-authored in the existing
+business sense. Moderation workflow, review responsibility, and expiry for manual entries
+remain open.
 
 ## Explicitly out of scope for this workstream
 
@@ -208,6 +242,9 @@ Stated so this document does not silently pick an answer by omission:
    expires, what a rejection looks like) are not resolved by naming the source.
 3. Whether a landmark projection is versioned independently of `physical_presences[]` /
    `digital_presence?` or folds into a fourth field of the same `map.registry` shape.
+4. Which service owns the `art_register` table — a new one, or `identity` extended with a
+   second domain beside `bond_locations` — and the exact row shape, which waits on the same
+   `0x1` decision the landmark projection's minimum shape depends on.
 
 ## Invariants
 
@@ -223,13 +260,19 @@ Stated so this document does not silently pick an answer by omission:
 6. **MWL6.** No landmark, artifact, or point-of-interest data is published or consumed before a
    versioned projection contract exists in `nilx-one/0x1`.
 7. **MWL7.** Transport is not part of this workstream under any of its steps.
-8. **MWL8.** At Stage 1, every `DecisionMenu` candidate, and every point a mark may reference,
-   is drawn from `ShadeSource.litCells()`; a fogged cell is never constructed as a candidate.
+8. **MWL8.** At Stage 1, every `DecisionMenu` candidate is drawn from `ShadeSource.litCells()`;
+   a fogged cell is never constructed as a candidate. This gates interaction and Avaia's
+   choice, never rendering — see MWL11.
 9. **MWL9.** At Stage 1, only a person's own device observations light a cell. An admitted
    `NavigateTo` step must never be the first thing to light the cell it targets.
-10. **MWL10.** `art_register` content, OSM-seeded or manual, is product data, not protocol
-    truth: it must not be offered to `DecisionMenu`, rendered as map state, or treated as
-    `map.registry` content until it has crossed the landmark projection gate (MWL6).
+10. **MWL10.** `art_register` rows are product data, not protocol truth: an entry is never
+    offered to `DecisionMenu`, and never asserted as `map.registry` content, BondChain,
+    presence, or attendance, until it has crossed the landmark projection gate (MWL6).
+    Rendering the entry as a marker is not such an assertion and is not gated by MWL6.
+11. **MWL11.** A landmark's render is unconditional — a client renders every `art_register`
+    entry its viewport covers, fog included. Only interaction (tap, and candidacy for
+    `DecisionMenu`) is gated by `ShadeSource.litCells()`; a fogged landmark is visible and
+    inert, never hidden.
 
 ## Related
 
