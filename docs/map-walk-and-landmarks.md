@@ -105,8 +105,7 @@ The one place this workstream reuses rather than invents is the reserved
 memory of where it has already been, on the same terms `"self"` records already carry:
 device-local, encrypted at rest, never synced, never exported, never training signal without a
 separate governance contract (`presence-journal-lifecycle.md`, the `artificial-bonds/training-
-signal.md` egress gate). Widening the TypeScript union from `"self"` to `"self" | "avaia"` is
-the only concrete code change this implies, and it is client-side only.
+signal.md` egress gate). Widening the TypeScript union from `"self"` to `"self" | "avaia"` is the client-side implementation change, but it is not the whole contract change: `nilx-one/core`'s registered presence-journal shape explicitly says that `source` is a closed vocabulary with exactly one usable value in the current phase. Before Web writes `source: "avaia"`, that registered contract note must be updated to admit the second value and define its local-only semantics. Core still does not own the journal or need a Rust implementation.
 
 ### 5. "What's new" is a diff against the caller's own last look
 
