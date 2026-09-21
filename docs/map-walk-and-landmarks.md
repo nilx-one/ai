@@ -27,7 +27,7 @@ Nothing here blocks on transport, and this workstream must not grow to include i
 
 ## What already exists
 
-Nothing below is new. The gap is that none of it has been asked to run in sequence yet.
+The runtime primitives below already exist. The gap is that none of them has been asked to run in sequence yet.
 
 | Piece | Where | What it does |
 |---|---|---|
