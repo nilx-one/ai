@@ -16,7 +16,9 @@ pub use inference::{
     select_local_model, served_models,
 };
 pub use routing::{AvaiaFailureReport, FailureSink, RoutedFailure, route_failure};
-pub use state::{AvaiaIntent, AvaiaModelContext, AvaiaPauseReason, AvaiaState, AVAIA_STATE_SCHEMA_VERSION};
+pub use state::{
+    AVAIA_STATE_SCHEMA_VERSION, AvaiaIntent, AvaiaModelContext, AvaiaPauseReason, AvaiaState,
+};
 
 /// Opaque map target selected and owned by the product world layer.
 ///
