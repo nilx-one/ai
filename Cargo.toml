@@ -13,10 +13,9 @@ repository = "https://github.com/nilx-one/ai"
 path = "src/lib.rs"
 
 [dependencies]
-# Pinned to the foundation commit the v0.2.0 release tag names, so this crate and the
-# `@aiaiaiai/webllm` / `@aiaiaiai/contracts` packages nilx-one/web installs are one
-# release. Becomes `tag = "v0.2.0"` once that tag is pushed (nilx-one/ai#17).
-aiai-runtime = { git = "https://github.com/aiaiaiai-org/artificial-intelligence.git", rev = "b12f421c68bcb5843cbcb5236628161a505dd74f" }
+# Pinned to the foundation's v0.2.0 release, the same release that published the
+# `@aiaiaiai/webllm` / `@aiaiaiai/contracts` packages nilx-one/web installs.
+aiai-runtime = { git = "https://github.com/aiaiaiai-org/artificial-intelligence.git", tag = "v0.2.0" }
 serde = { version = "1.0", features = ["derive"] }
 
 [dev-dependencies]
