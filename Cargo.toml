@@ -13,9 +13,9 @@ repository = "https://github.com/nilx-one/ai"
 path = "src/lib.rs"
 
 [dependencies]
-# Pinned to the foundation revision that introduced canonical failure routing.
-# This revision is reachable from aiaiaiai-org/artificial-intelligence master.
-aiai-runtime = { git = "https://github.com/aiaiaiai-org/artificial-intelligence.git", rev = "cc98bf9e47fd88e37c0ed29201262c592a16f2d2" }
+# Pinned to the foundation's v0.2.0 release, the same release that published the
+# `@aiaiaiai/webllm` / `@aiaiaiai/contracts` packages nilx-one/web installs.
+aiai-runtime = { git = "https://github.com/aiaiaiai-org/artificial-intelligence.git", tag = "v0.2.0" }
 serde = { version = "1.0", features = ["derive"] }
 
 [dev-dependencies]
