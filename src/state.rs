@@ -12,12 +12,14 @@ use serde::{Deserialize, Serialize};
 pub const AVAIA_STATE_SCHEMA_VERSION: u16 = 1;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub enum AvaiaIntent {
     Explore,
     NavigateTo(MapTargetId),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub enum AvaiaPauseReason {
     OwnerControl,
     NoAdmissibleAction,
@@ -25,6 +27,7 @@ pub enum AvaiaPauseReason {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct AvaiaState {
     pub schema_version: u16,
     pub intent: Option<AvaiaIntent>,
@@ -66,7 +69,9 @@ impl AvaiaState {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// One-way, model-facing projection of [`AvaiaState`]. Never deserialized: it is not a
+/// storage format and must not be round-tripped back into product state.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct AvaiaModelContext {
     pub intent: Option<AvaiaIntent>,
     pub last_proposal: Option<AvaiaActionProposal>,

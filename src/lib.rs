@@ -25,6 +25,7 @@ pub use state::{
 ///
 /// Avaia may refer to a target but does not mint or reinterpret its coordinates.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(try_from = "String", into = "String")]
 pub struct MapTargetId(String);
 
 impl MapTargetId {
@@ -46,6 +47,20 @@ impl MapTargetId {
     }
 }
 
+impl TryFrom<String> for MapTargetId {
+    type Error = NavigationProposalError;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::new(value)
+    }
+}
+
+impl From<MapTargetId> for String {
+    fn from(value: MapTargetId) -> Self {
+        value.0
+    }
+}
+
 /// Product-specific action Avaia may propose.
 ///
 /// This value is computation, not authority. Consumers must route it through the
@@ -60,6 +75,16 @@ pub enum AvaiaActionProposal {
 pub enum NavigationProposalError {
     EmptyTargetId,
 }
+
+impl std::fmt::Display for NavigationProposalError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::EmptyTargetId => write!(f, "map target id must not be empty"),
+        }
+    }
+}
+
+impl std::error::Error for NavigationProposalError {}
 
 impl AvaiaActionProposal {
     /// Builds a navigation proposal that references an already resolved map target.
@@ -126,6 +151,20 @@ mod tests {
             AvaiaActionProposal::navigate_to("   "),
             Err(NavigationProposalError::EmptyTargetId)
         );
+    }
+
+    #[test]
+    fn deserializing_an_empty_target_id_is_rejected() {
+        let result: Result<MapTargetId, _> = serde_json::from_str("\"\"");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn map_target_id_round_trips_through_json() {
+        let target = MapTargetId::new("map-target-42").unwrap();
+        let bytes = serde_json::to_vec(&target).expect("serialize");
+        let restored: MapTargetId = serde_json::from_slice(&bytes).expect("deserialize");
+        assert_eq!(restored, target);
     }
 
     #[test]
