@@ -217,6 +217,33 @@ is operator-curated (OSM-seeded plus manual, admin-gated), not creator-authored 
 business sense. Moderation workflow, review responsibility, and expiry for manual entries
 remain open.
 
+## What Web ships first: an owner-driven walk, and basemap curiosity
+
+`nilx-one/web` ships a slice that runs before any of the decision machinery above
+([Avaia walks the world](https://github.com/nilx-one/web/blob/master/docs/avaia-walk.md)).
+It is recorded here so this document does not read as if it never happened:
+
+- **Commanded walks are not `NavigateTo`.** A person taps open ground and the Avaia's body
+  walks there. That is the owner moving a presentation body, the same way the Dock's wheel
+  is presentation, not a proposal the Avaia makes. No `DecisionMenu` is built, no model is
+  asked, and nothing is admitted. MWL1 and MWL3 govern Avaia's own choices, and this is not
+  one.
+- **The fog is respected at the tap.** A tap into ground this device has not revealed is
+  refused, which is the MWL8 boundary applied to a person's command. The only exception is
+  the ground within 50 m of the device, where the person is standing. Avaia's walk writes no
+  `VisitRecord` and lights no cell (MWL9).
+- **Curiosity reads basemap `pois`, not a landmark projection.** When the person's own device
+  passes within 40 m of a `pois` feature the basemap already draws (monument, memorial,
+  artwork, …), it goes into a device-local notebook. An idle Avaia then walks up to the
+  nearest noticed feature and records that feature's own attributes. This is basemap
+  presentation data read locally, like the `pois` circles the style already paints. It is not
+  `art_register`, not `map.registry` content, and not a landmark projection, so MWL6 and MWL10
+  still hold for those. The notebook is device-local, never synced, exported or used as
+  training signal (MWL4, MWL5).
+- **The choice is a rule for now.** "Nearest noticed, not yet studied" stands in for a
+  decision. Moving it onto `DecisionMenu` keeps the same candidate boundary: only what the
+  person already walked past.
+
 ## Explicitly out of scope for this workstream
 
 - **Transport.** Named separately in `map-data.md`; large enough to need its own workstream and
