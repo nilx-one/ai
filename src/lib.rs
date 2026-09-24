@@ -13,7 +13,8 @@ use serde::{Deserialize, Serialize};
 
 pub use decision::{DecisionError, DecisionMenu, DecisionMenuError, StopAction};
 pub use inference::{
-    DeviceCapability, DeviceLimit, LocalModel, MemoryBudget, NoLocalModel, runtime_floor,
+    Admission, DeviceCapability, DeviceLimit, Ineligible, Licence, LocalModel, MemoryBudget,
+    ModelFamily, default_local_model, eligible_local_models, find_local_model, runtime_floor,
     select_local_model, served_models,
 };
 pub use routing::{AvaiaFailureReport, FailureSink, RoutedFailure, route_failure};
