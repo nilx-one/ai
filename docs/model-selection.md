@@ -9,6 +9,38 @@ selection is named as product work in the foundation's own integration contract.
 This document is the analysis behind that decision. It is written against what Avaia is
 for, and that is the first section because it reorders everything after it.
 
+## Revised: five entries, chosen by the owner
+
+The first version of this analysis chose two `Qwen3` entries and let the device pick between
+them. The catalog now serves five entries across four families, and the owner chooses. Four
+decisions below are reversed on purpose, and each is recorded where it was first made:
+
+1. **Selection is the owner's choice within device eligibility, not the device's alone.** The
+   model now also rephrases Ukrainian sentences a person reads (`nilx-one/web`'s
+   `narration-webllm`), which is exactly the use the original analysis set aside. Whether a
+   larger or different model reads better is something the person reading can judge and a
+   probe cannot. The device still decides what is *offered*; it no longer decides what is
+   *chosen*.
+2. **The catalog spans four families, so "one family, one prompt profile" no longer holds.**
+   Per-family prompt behaviour — template, the thinking switch, sampling, how many tokens a
+   Ukrainian sentence costs, and how often a rephrasing survives the faithfulness check — is
+   now a **validation obligation per family**, not something one family's validation covers.
+   An entry is not assumed to narrate well because another one does.
+3. **`SmolLM2-360M-Instruct`, rejected below on row 2 (judgement), is served anyway** as the
+   lightest entry. Row 2 judged it for choosing among map targets; as an owner's choice for
+   rephrasing, a device with very little headroom may prefer it, and the faithfulness check
+   decides per sentence whether what it wrote is shown.
+4. **`Llama-3.2-1B-Instruct`, rejected below on row 1 (redistribution terms), is served with
+   its obligations.** Row 1 did not say those terms forbid our use; it said they travel with
+   every mirror. They now do — see [model licences](model-licences.md).
+
+**The default is unchanged: `Qwen3-0.6B-q4f16_1-MLC`.** It is what a surface with nobody to
+ask runs, and what a stored choice falls back to when the device stops admitting it.
+
+The rows of [What decides it](#what-decides-it) still decide what is *served*: every entry
+cleared row 1 by having its licence read and its obligations met, and row 5 by existing in
+the pinned registry. They no longer rank what a device is given.
+
 ## What the model is for
 
 In this slice Avaia explores, moves, gradually lives, and chooses where to go next. Nobody
@@ -67,12 +99,12 @@ roughly 1.3× and win nothing their half-precision row lost.
 
 | `model_id` | VRAM MB | Licence | Why not |
 |---|---:|---|---|
-| `SmolLM2-360M-Instruct-q4f16_1-MLC` | 376.06 | Apache-2.0 | The cheapest entry that clears row 1. Rejected on row 2 — see [The floor is a claim](#the-floor-is-a-claim-not-a-fact). |
+| `SmolLM2-360M-Instruct-q4f16_1-MLC` | 376.06 | Apache-2.0 | The cheapest entry that clears row 1. Rejected on row 2 — see [The floor is a claim](#the-floor-is-a-claim-not-a-fact). **Served since the catalog revision**, as the lightest owner's choice. |
 | `TinyLlama-1.1B-Chat-*`, `RedPajama-*`, `phi-1_5`, `phi-2` | 675–3054 | Apache-2.0 / MIT | Older base and chat checkpoints; instruction-following is the one thing we need and the one thing they are weakest at. |
 | `gemma3-1b-it-q4f16_1-MLC` | 711.07 | Gemma Terms | Redistribution carries Google's use policy to whoever receives the weights. |
-| `Llama-3.2-1B-Instruct-q4f16_1-MLC` | 879.04 | Llama 3.2 Community | Attribution, a copy of the licence, and the acceptable-use policy travel with every mirror we serve. |
+| `Llama-3.2-1B-Instruct-q4f16_1-MLC` | 879.04 | Llama 3.2 Community | Attribution, a copy of the licence, and the acceptable-use policy travel with every mirror we serve. **Served since the catalog revision, with those obligations met.** |
 | `gemma-2-2b-it`, `gemma-2b-it` | 1476–1895 | Gemma Terms | As above. |
-| `OLMo-2-0425-1B-Instruct-q4f16_1-MLC` | 1776.75 | Apache-2.0 | Clean licence, real candidate, and 373 MB more resident than the floor for the same size class. Cost, not language. |
+| `OLMo-2-0425-1B-Instruct-q4f16_1-MLC` | 1776.75 | Apache-2.0 | Clean licence, real candidate, and 373 MB more resident than the floor for the same size class. Cost, not language. **Served since the catalog revision.** |
 | `stablelm-2-zephyr-1_6b-q4f16_1-MLC` | 2087.66 | Stability community | Not Apache-2.0; conditions to read before mirroring, for a 1.6B. |
 | `Hermes-3-Llama-3.2-3B-q4f16_1-MLC` | 2263.69 | Llama 3.2 Community | Llama licence underneath, at the upgrade entry's budget. |
 | `Qwen3.5-0.8B` / `Qwen3.5-2B-q4f16_1-MLC` | 1629.49 / 2245.44 | to confirm | The newer generation, and 226 / 209 MB more resident than the entries we serve. See [Why not the newer generation](#why-not-the-newer-generation). |
@@ -81,28 +113,38 @@ roughly 1.3× and win nothing their half-precision row lost.
 | `Mistral-7B-Instruct-v0.3-q4f16_1-MLC` | 4573.39 | Apache-2.0 | The cleanest licence in the field at twice the upgrade entry's VRAM. `OpenHermes`, `NeuralHermes`, and `Hermes-2-Pro` on the same base sit at 4033–4573. |
 | `DeepSeek-R1-Distill-Qwen-1.5B-*` | — | — | Commented out of the `0.2.84` registry over a correctness issue, so it has no artifacts to serve, and it is a reasoning distillation regardless. |
 
-## The decision: two models, one family
+## The decision: five entries, one default
 
-| Role | `model_id` | VRAM MB | Registry says |
+| `model_id` | Family | VRAM MB | Licence |
 |---|---|---:|---|
-| Floor — what a mobile WebView can hold while the product draws | `Qwen3-0.6B-q4f16_1-MLC` | 1403.34 | `low_resource_required: true` |
-| Upgrade — where a device answers the probe generously | `Qwen3-1.7B-q4f16_1-MLC` | 2036.66 | `low_resource_required: true` |
+| `Qwen3-0.6B-q4f16_1-MLC` — **default** | `qwen3` | 1403.34 | Apache-2.0 |
+| `Qwen3-1.7B-q4f16_1-MLC` | `qwen3` | 2036.66 | Apache-2.0 |
+| `SmolLM2-360M-Instruct-q4f16_1-MLC` | `smollm2` | 376.06 | Apache-2.0 |
+| `OLMo-2-0425-1B-Instruct-q4f16_1-MLC` | `olmo2` | 1776.75 | Apache-2.0 |
+| `Llama-3.2-1B-Instruct-q4f16_1-MLC` | `llama3.2` | 879.04 | Llama 3.2 Community |
 
-Two entries because the device decides and one entry cannot be right for both a phone and a
-workstation. The same family at both tiers because that means one prompt profile to
-validate, one conversation template, one thinking switch, one licence, and one mirror
-layout — and because the two sizes are a real gap rather than a rounding difference.
+All five are `q4f16_1`, all carry `low_resource_required: true` in the registry, and all run
+with a 4096-token context window.
 
-`Qwen3` because it is **Apache-2.0 outright**, which is the only licence in the field that
-costs the mirror nothing and the only one that needs no reading before the first byte is
-copied. It is instruction-tuned at both sizes, its thinking mode is a switch the adapter
-already turns off, and its ABI is a plain paged KV cache — one fewer unknown for an engine
-that stays loaded for as long as an owner is spectating.
+*This section previously read "two models, one family", with the device choosing between
+`Qwen3-0.6B` and `Qwen3-1.7B` by the largest that fit. With four families, the largest entry
+within budget would pick `OLMo-2` (1777 MB) over `Qwen3-0.6B` (1404 MB) on size alone, which
+is not a judgement anybody made.*
 
-Selection between the two is not a preference and not a fallback: `select_local_model` in
-`src/inference.rs` reads a measured device. A device that runs neither gets `None`, which
-means this surface runs no local model. It does not mean offer something smaller, and it
-does not mean move inference elsewhere without saying so.
+Three facts, kept apart:
+
+- **Eligibility** is the device's and the product's. `eligible_local_models` answers for every
+  entry, admitted or refused with its reason — below a runtime floor, no `shader-f16`, or over
+  the budget this surface declared. A refused entry is shown with its reason and never offered.
+- **Choice** is the owner's, made within eligibility, stored per device, and a separate fact
+  from what is cached: choosing an entry fetches nothing.
+- **The default** is what runs where nobody can be asked. `select_local_model` returns it when
+  it is eligible and its refusal when it is not. It does not pick another family on someone's
+  behalf because it happens to fit.
+
+Qwen3 remains the default because it is Apache-2.0 outright, instruction-tuned, reads the
+thinking switch the adapter sends, and is the only family whose tokenizer and template this
+product has already exercised.
 
 ### Why not the newer generation
 
@@ -245,14 +287,21 @@ flag from the quantization rather than storing an opinion about it.
 
 ## Where the choice lives in code
 
-`src/inference.rs` holds the catalog and the selection rule, with the three kinds of fact
-kept apart. `DeviceCapability` carries only what a probe can obtain — the `shader-f16`
+`src/inference.rs` holds the catalog, the eligibility rule and the default, with the three
+kinds of fact kept apart. Every entry carries its family and its licence. `DeviceCapability` carries only what a probe can obtain — the `shader-f16`
 feature and four adapter limits, and no memory field, because no browser will answer that
 question. `MemoryBudget::declared` carries the product's own willingness to spend, named for
 its provenance. `runtime_floor` quotes the limits the pinned runtime refuses to start below.
-`select_local_model` returns the entry a device may be offered, or a `NoLocalModel` saying
-which of the three refused — a device below a runtime floor, a device without f16, and a
-budget under the smallest entry stay three separate facts rather than one absent value.
+`eligible_local_models` answers for every entry with an `Ineligible` reason where it refuses
+— a device below a runtime floor, a device without f16, and an entry over the declared budget
+stay three separate facts rather than one absent value. `select_local_model` returns the
+default or the default's own refusal.
+
+The same rule is implemented twice: here, and in `nilx-one/web`'s
+`packages/narration-webllm/src/device.ts`, which is what a browser actually runs. Both test
+against `fixtures/local-model-eligibility.json`, which this repository owns and `web` keeps a
+byte-identical copy of. That is the answer to "one source or a shared fixture" until a browser
+binding of this crate exists; then `web` consumes the rule instead of restating it.
 
 `LocalModel` is `ai`'s own descriptor and deliberately not `WebLLM`'s `ModelRecord`: that
 record needs `model` and `model_lib` URLs, which depend on the mirror a deployment serves

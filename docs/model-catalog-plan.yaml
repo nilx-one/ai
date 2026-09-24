@@ -1,0 +1,211 @@
+# © 2026 aiaiaiai · aiaiaiai.org
+# SPDX-License-Identifier: MPL-2.0
+
+# Implementation plan: a five-entry local model catalog with owner choice.
+#
+# Proposed home: nilx-one/ai/docs/model-catalog-plan.yaml, beside implementation-plan.yaml.
+# The issues are the source of truth; this file is the same plan in one place, ordered, with
+# what blocks what. Where the two disagree, the issue wins and this file is stale.
+#
+# Nothing here is estimated in time. Steps say what would make them done.
+
+slice: local model catalog
+tracked_by: TBD            # the tracking issue create-issues.sh opens first
+written_against:
+  nilx-one/web: 79ef4e5
+  nilx-one/ai: master (SERVED_MODELS = [Qwen3-0.6B, Qwen3-1.7B])
+  runtime: "@mlc-ai/web-llm@0.2.84 via @aiaiaiai/webllm"
+
+catalog:
+  # Read off the 0.2.84 prebuilt registry. VRAM is the registry's vram_required_MB, a claim
+  # rather than a measurement. Every model_lib is <prefix>/v0_2_84/base/<lib>.
+  - model_id: Qwen3-0.6B-q4f16_1-MLC
+    family: qwen3
+    vram_mb: 1403.34
+    model_lib: Qwen3-0.6B-q4f16_1_cs1k-webgpu.wasm
+    licence: Apache-2.0
+    status: served            # the only entry mirrored today
+  - model_id: Qwen3-1.7B-q4f16_1-MLC
+    family: qwen3
+    vram_mb: 2036.66
+    model_lib: Qwen3-1.7B-q4f16_1_cs1k-webgpu.wasm
+    licence: Apache-2.0
+    status: in nilx-one/ai catalog, not in web
+  - model_id: SmolLM2-360M-Instruct-q4f16_1-MLC
+    family: smollm2
+    vram_mb: 376.06
+    model_lib: SmolLM2-360M-Instruct-q4f16_1_cs1k-webgpu.wasm
+    licence: Apache-2.0 (to confirm from the upstream card)
+    status: new
+  - model_id: OLMo-2-0425-1B-Instruct-q4f16_1-MLC
+    family: olmo2
+    vram_mb: 1776.75
+    model_lib: OLMo-2-0425-1B-Instruct-q4f16_1_cs1k-webgpu.wasm
+    licence: Apache-2.0 (to confirm from the upstream card)
+    status: new
+  - model_id: Llama-3.2-1B-Instruct-q4f16_1-MLC
+    family: llama3.2
+    vram_mb: 879.04
+    model_lib: Llama-3.2-1B-Instruct-q4f16_1_cs1k-webgpu.wasm
+    licence: Llama 3.2 Community License
+    status: new, integrated last
+
+invariants:
+  # Carried from implementation-plan.yaml; none of them move in this slice.
+  - Nothing is mirrored before its licence is read; serving weights is redistribution.
+  - A model is only ever lazy-loaded from explicit product entry; Settings may prefetch.
+  - Narration never falls below the deterministic sentence; a model adds wording, not facts.
+  - product-app imports neither @nilx-one/narration-webllm nor @aiaiaiai/webllm.
+  # New in this slice:
+  - Chosen and downloaded are different facts. Choosing a model fetches nothing.
+  - An entry the device cannot run is shown with its reason, never offered.
+
+decisions_changed:
+  # Each of these reverses a line in nilx-one/ai/docs/model-selection.md on purpose.
+  - Selection becomes the owner's choice within device eligibility, not the device's alone.
+  - The catalog spans four families; "one family, one prompt profile" no longer holds.
+  - SmolLM2-360M, rejected there on row 2 (judgement), is served anyway as the lightest entry.
+  - Llama 3.2, rejected there on row 1 (redistribution terms), is served with its obligations.
+
+tasks:
+
+  - id: T0-decision
+    repo: nilx-one/ai
+    title: "model-selection: catalog of five, owner choice within eligibility"
+    blocked_by: []
+    blocks: [T1-licences, T2-ai-catalog, T3-choice-interface]
+    done_when:
+      - model-selection.md records the four decisions_changed above and why
+      - the default entry is named (Qwen3-0.6B, unchanged)
+      - the doc states that per-family prompt behaviour is now a validation obligation
+
+  - id: T1-licences
+    repo: nilx-one/ai
+    title: "read and record the licence of every catalog entry before mirroring"
+    blocked_by: [T0-decision]
+    blocks: [T7-mirror, T8-qwen-1_7b, T9-smollm2, T10-olmo2, T11-llama]
+    done_when:
+      - docs/model-licences.md lists, per model_id, the licence read from the upstream card,
+        what redistribution obliges, and the exact notice text for manifest.json
+      - the Llama 3.2 section records a licence copy with the weights, a visible
+        "Built with Llama", the Notice sentence, the AUP incorporated by reference, and the
+        naming clause on models trained from Llama outputs
+
+  - id: T2-ai-catalog
+    repo: nilx-one/ai
+    title: "SERVED_MODELS to five entries; eligibility instead of largest-wins"
+    blocked_by: [T0-decision]
+    blocks: [T4-eligibility]
+    why: >-
+      select_local_model returns the largest entry within budget. Across four families that
+      would pick OLMo-2 (1777 MB) over Qwen3-0.6B (1404 MB) on size alone, which is not a
+      judgement anybody made.
+    done_when:
+      - LocalModel carries family and licence id
+      - eligible_local_models(device, budget) returns every admissible entry with the
+        refusal for each inadmissible one
+      - select_local_model returns the default when eligible, and is documented as the
+        answer for surfaces with nobody to ask
+      - tests cover a budget that admits some families and refuses others
+
+  - id: T3-choice-interface
+    repo: nilx-one/web
+    title: "local model Settings: a catalog, a choice, per-model status"
+    blocked_by: [T0-decision]
+    blocks: [T4-eligibility, T5-composition]
+    done_when:
+      - LocalModelDependency becomes { host, catalog, defaultModelId }, each entry
+        { modelId, family, label, vramMb, licence }
+      - the chosen model persists per device and is a separate fact from what is cached
+      - Settings shows one choice control over the catalog and download/remove for the
+        chosen entry; changing the choice fetches nothing
+      - notices and attribution render per entry, before any download
+      - view-model tests written first; architecture dependency test unchanged and green
+      - uk and en strings for every new key
+
+  - id: T4-eligibility
+    repo: nilx-one/web
+    title: "per-entry device verdict against a declared budget"
+    blocked_by: [T2-ai-catalog, T3-choice-interface]
+    blocks: [T5-composition]
+    done_when:
+      - inspect() answers per model_id, including a budget refusal
+      - an ineligible entry is visible with its reason and cannot be chosen
+      - a stored choice that becomes ineligible falls back to the default and says so
+      - the rule matches T2's; which repo owns it long-term is written down
+
+  - id: T5-composition
+    repo: nilx-one/web
+    title: "compose the catalog in apps/site; NARRATION_MODEL_ID becomes the default"
+    blocked_by: [T3-choice-interface, T4-eligibility]
+    blocks: [T8-qwen-1_7b, T9-smollm2, T10-olmo2, T11-llama]
+    note: >-
+      Today only Settings receives a modelId; createWebLlmNarrationAdapter is not composed
+      anywhere in apps/*. Whatever narration entry point lands must read the same choice.
+    done_when:
+      - narration-webllm exports the catalog; main.tsx passes it instead of one id
+      - the narration adapter, wherever composed, opens the chosen model
+
+  - id: T6-family-profiles
+    repo: nilx-one/web
+    title: "per-family generation profile and faithfulness check"
+    blocked_by: [T5-composition]
+    blocks: [T11-llama]
+    why: >-
+      The rephrase call sends enable_thinking: false, a Qwen3 switch, and one Ukrainian
+      system prompt. Other families may ignore the switch, need other sampling, or fail
+      isFaithful on most sentences — in which case they fall back silently to the
+      deterministic sentence and the download bought nothing.
+    done_when:
+      - generation parameters are a per-family table with tests on the fake engine
+      - an on-device fixture pass per family records how many sentences isFaithful admits
+      - an entry that admits almost none is labelled as such in Settings
+
+  - id: T7-mirror
+    repo: nilx-one/web
+    title: "bootstrap-models: one invocation per catalog entry, notices from T1"
+    blocked_by: [T1-licences]
+    blocks: [T8-qwen-1_7b, T9-smollm2, T10-olmo2, T11-llama]
+    done_when:
+      - MODEL_LIB_URL is derived per model_id from the pinned registry names, not defaulted
+        to the 0.6B library
+      - manifest notices come from T1 per entry
+      - check-models-public covers every served entry
+
+  - id: T8-qwen-1_7b
+    repo: nilx-one/web
+    title: "serve and offer Qwen3-1.7B"
+    blocked_by: [T1-licences, T5-composition, T7-mirror]
+    done_when: [mirrored, offered where eligible, downloads and unloads from Settings]
+
+  - id: T9-smollm2
+    repo: nilx-one/web
+    title: "serve and offer SmolLM2-360M"
+    blocked_by: [T1-licences, T5-composition, T7-mirror]
+    done_when: [mirrored, offered, T6 fixture result recorded]
+
+  - id: T10-olmo2
+    repo: nilx-one/web
+    title: "serve and offer OLMo-2-0425-1B"
+    blocked_by: [T1-licences, T5-composition, T7-mirror]
+    done_when: [mirrored, offered where eligible, T6 fixture result recorded]
+
+  - id: T11-llama
+    repo: nilx-one/web
+    title: "serve and offer Llama-3.2-1B with its licence obligations"
+    blocked_by: [T1-licences, T5-composition, T6-family-profiles, T7-mirror]
+    done_when:
+      - the Llama 3.2 Community License text is written into the revision directory
+      - the Notice sentence is in manifest.json notices
+      - the phrase "Built with Llama" is visible in Settings beside the entry and on the about surface
+      - the AUP is linked where the entry is offered
+      - narration produced by this entry is marked in the journal so the training-signal
+        egress policy can exclude it (naming clause); cross-referenced in
+        nilx-one/ai/docs/presence-journal-egress-policy.md
+
+open:
+  - Eligibility logic exists in Rust (nilx-one/ai) and will exist in TypeScript (web). One
+    source, or a shared fixture both test against?
+  - Ukrainian quality per family is unmeasured. T6 measures it; nothing here assumes it.
+  - Mirror storage on the VPS grows with every entry; each manifest's bytes will say by how
+    much. Nothing here has measured it yet.
