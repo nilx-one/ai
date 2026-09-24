@@ -66,6 +66,20 @@ In particular:
 
 The authoritative interaction and Relationship semantics remain outside this repository.
 
+## Output whose licence reaches past the device
+
+Llama 3.2's licence (§1.b.i) reaches the *name* of any model created, trained, fine-tuned or
+otherwise improved with Llama outputs and then distributed: that name must begin with "Llama".
+Narration written by the `Llama-3.2-1B-Instruct` entry is such output, and it is journal-derived
+data under this policy as well.
+
+It is therefore marked where it is produced. `nilx-one/web`'s narration fragments carry
+`producedBy` — the adapter, the `model_id` and its licence — on every sentence a model wrote; a
+sentence whose rephrasing was refused keeps the deterministic text and carries no model licence,
+because no model wrote it. Any future training-egress route must exclude fragments whose licence
+names derived models (`Licence::names_derived_models` in `src/inference.rs`) unless that route
+names its model accordingly. See [model licences](model-licences.md).
+
 ## Implementation rule
 
 Any future code that could cross this boundary must have an explicit egress capability in
