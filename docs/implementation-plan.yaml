@@ -17,8 +17,9 @@ written_against: b869b02          # nilx-one/ai master, PR #10 merged
 invariants:
   # None of these move as the plan proceeds. A step that requires one to move is a step that
   # needs a decision first, taken deliberately and elsewhere.
-  - Model output is a proposal over targets the world layer resolved; the authority boundary
-    decides whether anything is attempted.
+  - Model output is a choice among targets the world layer resolved; it never mints one.
+    Where Avaia walks is hers - a movement decision is carried out as made, with no
+    admission - and an owner influences it only by setting a navigation position.
   - Avaia's inference is on-device. No local model available means no local Avaia, not
     inference somewhere else.
   - This repository models no completion. Whether an interaction happened is 0x1 and core.
@@ -247,16 +248,16 @@ workstreams:
     blocked_by: [state-contract, ai-bindings, web-lifecycle]
     blocks: []
     why: >-
-      A walk is a chain of the DecisionMenu/NavigateTo proposal this repository already has,
+      A walk is a chain of the DecisionMenu/NavigateTo decision this repository already has,
       run while SPECTATE, against candidate targets a world layer resolves and observation
       persisted through the already-reserved VisitRecord source:"avaia" slot. None of it can
       be exercised in a browser before the on-device slice itself is wired up, so this sits
       downstream of the critical path rather than on it.
     doc: docs/map-walk-and-landmarks.md
     steps:
-      - resolve the two open product questions the doc states rather than picks — per-step
-        admission vs. a bounded walk-delegation scope, and art_register's moderation/expiry
-        rules (its authorship direction is already narrowed to OSM-seeded plus manual).
+      - resolve the open product question the doc states rather than picks - art_register's
+        moderation/expiry rules (its authorship direction is already narrowed to OSM-seeded
+        plus manual). Permission is not a question: a walk has none (MWL12, MWL13).
       - widen presence-contract's VisitRecord.source union from "self" to "self" | "avaia"
         (nilx-one/web, client-side only).
       - implement the world-layer candidate resolver that turns lit-cell adjacency into
@@ -272,7 +273,7 @@ workstreams:
       - fog expansion via Avaia's own movement — Stage 1 confines every walk to
         ShadeSource.litCells(); only the person's own device observations light a cell
     done_when: >-
-      Avaia can walk a chain of admitted NavigateTo steps while SPECTATE, record source:"avaia"
+      Avaia walks a chain of her own NavigateTo decisions while SPECTATE, record source:"avaia"
       visits locally, and render a diff of map.registry state for newly lit cells — with
       landmarks folded in once, and only once, their projection contract exists.
 

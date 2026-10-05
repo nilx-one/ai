@@ -49,7 +49,7 @@ is not a claim about what Avaia may ever do, and a later slice that needs langua
 reopen this decision.
 
 What that makes the model's output is a **choice from a closed set the product already
-resolved** — this crate's `AvaiaActionProposal`, which is `NavigateTo { target }` over an
+resolved** — this crate's `AvaiaDecision`, which is `NavigateTo { target }` over an
 opaque `MapTargetId` the world layer minted, or `StopNavigation`. Prose is not the product.
 A sentence a person reads is not the product either.
 
@@ -221,8 +221,9 @@ which is precisely the ambiguity the closed action set exists to remove.
 With it, the grammar is generated from the targets the world layer already resolved, so the
 decode cannot name a target that does not exist, and this crate's refusal — that a model may
 not mint a `MapTargetId` — is enforced at the point of generation as well as after it. A
-model output is still a proposal, still admitted or refused at the authority boundary; the
-grammar only removes the class of proposals that are meaningless.
+model output is still only a choice among what the world layer offered; the grammar removes
+the class of choices that are meaningless. Once made, a movement choice is what Avaia does:
+nothing admits it afterwards.
 
 Closing the gap is the same seam as pointing the loader at our host, and the next section
 is where that seam is.

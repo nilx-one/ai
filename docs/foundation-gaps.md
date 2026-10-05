@@ -77,7 +77,7 @@ typed capability value: the shape of what a probe reports belongs beside the pro
   deliberately pins one default only so its adapter has a tested pair.
 - **`MemoryBudget`.** A declared willingness to spend memory on a surface is a product's
   claim about its own product, and it must not be dressed up as a measurement anywhere.
-- **`MapTargetId`, `AvaiaActionProposal`, and the action names in the grammar.** 0x1
+- **`MapTargetId`, `AvaiaDecision`, `OwnerWaypoint`, and the action names in the grammar.** 0x1
   vocabulary. The foundation contains no participant, relationship, interaction, or record
   type on purpose, and a navigation verb is exactly that kind of type.
 - **Anything that models completion.** The foundation stops at an effect request, and 0x1
