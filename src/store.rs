@@ -3,26 +3,19 @@
 
 //! Where Avaia's continuity state is kept, as rules rather than as storage.
 //!
-//! This crate does no I/O. A product supplies the storage behind [`AvaiaStateStore`]; what
-//! this module owns is what any such storage must and must not do with the value:
+//! This crate does no I/O. A product supplies the storage behind AvaiaStateStore. The
+//! boundary keeps subject + schema metadata outside the schema-specific payload so a runtime
+//! can quarantine a future record without first trying to deserialize it.
 //!
-//! - a record is bound to the Avaia it belongs to ([`AvaiaSubject`]), and a record bound to
-//!   another subject is never read as this one's;
-//! - a v1 record is read and upgraded; a record in a schema newer than this crate is kept as
-//!   it is — quarantined, not rewritten — and she runs without it;
-//! - a write replaces the record whole, or not at all, and never overwrites a quarantined one.
-//!
-//! The subject is established by the identity and protocol layer, never by a model: the same
-//! Avaia on a new runtime, a new model, or after the model was evicted from a device's cache
-//! restores the same state.
+//! A write is one guarded storage operation: checking the currently stored subject/schema and
+//! replacing the bytes happen atomically inside the adapter. There is no load-then-replace gap
+//! in which another context could install a newer schema and have it overwritten.
 
 use crate::{AVAIA_STATE_SCHEMA_VERSION, AvaiaState};
 use serde::{Deserialize, Serialize};
 
-/// The Avaia a stored state belongs to: an identifier the identity layer established.
-///
-/// Opaque here. It must never be derived from a model, a runtime, a device or a cache: those
-/// change while she stays the same.
+const REPLACEABLE_SCHEMAS: &[u16] = &[1, AVAIA_STATE_SCHEMA_VERSION];
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(try_from = "String", into = "String")]
 pub struct AvaiaSubject(String);
@@ -31,7 +24,7 @@ impl AvaiaSubject {
     /// Creates a non-empty subject.
     ///
     /// # Errors
-    /// Returns [`EmptySubject`] for an empty or blank identifier.
+    /// Returns EmptySubject for an empty or blank identifier.
     pub fn new(value: impl Into<String>) -> Result<Self, EmptySubject> {
         let value = value.into();
         if value.trim().is_empty() {
@@ -60,7 +53,6 @@ impl From<AvaiaSubject> for String {
     }
 }
 
-/// A subject identifier was empty.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct EmptySubject;
 
@@ -72,47 +64,52 @@ impl std::fmt::Display for EmptySubject {
 
 impl std::error::Error for EmptySubject {}
 
-/// What a store holds: one Avaia's state, bound to her.
+/// One stored state envelope. Subject and schema version stay outside payload so an unknown
+/// future payload never has to be decoded merely to decide that it must be quarantined.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StoredAvaiaState {
     pub subject: AvaiaSubject,
-    pub state: AvaiaState,
+    pub schema_version: u16,
+    pub payload: Vec<u8>,
 }
 
-/// The storage a product supplies. Only the rules in this module decide what is read from it
-/// or written to it; an implementation only keeps bytes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum GuardedReplace {
+    Replaced,
+    WrongSubject,
+    SchemaNotReplaceable { schema_version: u16 },
+}
+
+/// Storage keeps opaque payload bytes and envelope metadata; it does not decide Avaia semantics.
 pub trait AvaiaStateStore {
-    /// The storage's own failure: unavailable, unreadable, full.
     type Error;
 
-    /// The record kept for `subject`, as stored, or `None` when there is none.
-    ///
     /// # Errors
     /// The storage could not be read.
     fn load(&self, subject: &AvaiaSubject) -> Result<Option<StoredAvaiaState>, Self::Error>;
 
-    /// Replaces the record kept for `record.subject` with `record`, atomically: after a
-    /// failure the previous record is still the one kept.
+    /// Checks the currently stored envelope and replaces it as one atomic storage operation.
+    /// The adapter must use one transaction / compare-and-swap equivalent: no record may be
+    /// installed between this guard and the replacement.
     ///
     /// # Errors
-    /// The storage could not be written; nothing changed.
-    fn replace(&mut self, record: StoredAvaiaState) -> Result<(), Self::Error>;
+    /// The storage operation failed; nothing changed.
+    fn replace_guarded(
+        &mut self,
+        subject: &AvaiaSubject,
+        replaceable_schema_versions: &[u16],
+        record: StoredAvaiaState,
+    ) -> Result<GuardedReplace, Self::Error>;
 }
 
-/// What restoring found.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Restored {
-    /// Her state, in the current schema.
     State(AvaiaState),
-    /// Nothing kept for her yet: she starts from [`AvaiaState::new`].
     Fresh,
-    /// Her state is in a schema newer than this crate. It stays as it is in the store, and
-    /// this runtime starts her from [`AvaiaState::new`] without writing over it.
     Quarantined { schema_version: u16 },
 }
 
 impl Restored {
-    /// The state to run with: hers, or a fresh one when there is none this crate can read.
     #[must_use]
     pub fn into_state(self) -> AvaiaState {
         match self {
@@ -122,24 +119,21 @@ impl Restored {
     }
 }
 
-/// Why restoring or persisting was refused.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StateStoreError<E> {
-    /// The record found belongs to another subject. It is never read as this one's.
     WrongSubject,
-    /// The record kept is in a newer schema; writing would destroy what this crate cannot read.
-    WouldOverwriteNewer { schema_version: u16 },
-    /// Only the current schema is ever written.
+    WouldOverwriteUnsupported { schema_version: u16 },
     NotCurrentSchema { schema_version: u16 },
-    /// The storage itself failed.
+    InvalidPayload { schema_version: u16 },
+    EncodeFailed,
     Storage(E),
 }
 
-/// Restores `subject`'s state from `store`.
+/// Restores state after inspecting subject/schema envelope metadata.
 ///
 /// # Errors
-/// [`StateStoreError::WrongSubject`] when the record kept under `subject` is bound to another
-/// subject, and [`StateStoreError::Storage`] when the storage could not be read.
+/// Returns WrongSubject for a foreign envelope, InvalidPayload for malformed bytes of a schema
+/// this crate claims to understand, and Storage for an adapter failure.
 pub fn restore<S: AvaiaStateStore>(
     store: &S,
     subject: &AvaiaSubject,
@@ -150,20 +144,33 @@ pub fn restore<S: AvaiaStateStore>(
     if &record.subject != subject {
         return Err(StateStoreError::WrongSubject);
     }
-    let schema_version = record.state.schema_version;
-    Ok(record
-        .state
+    if !REPLACEABLE_SCHEMAS.contains(&record.schema_version) {
+        return Ok(Restored::Quarantined {
+            schema_version: record.schema_version,
+        });
+    }
+
+    let state: AvaiaState =
+        serde_json::from_slice(&record.payload).map_err(|_| StateStoreError::InvalidPayload {
+            schema_version: record.schema_version,
+        })?;
+    if state.schema_version != record.schema_version {
+        return Err(StateStoreError::InvalidPayload {
+            schema_version: record.schema_version,
+        });
+    }
+    state
         .upgraded()
-        .map_or(Restored::Quarantined { schema_version }, Restored::State))
+        .map(Restored::State)
+        .ok_or(StateStoreError::InvalidPayload {
+            schema_version: record.schema_version,
+        })
 }
 
-/// Keeps `state` as `subject`'s, replacing what was kept.
+/// Persists current state through one atomic guarded replacement, with no preliminary load.
 ///
 /// # Errors
-/// [`StateStoreError::NotCurrentSchema`] for a state not in the current schema,
-/// [`StateStoreError::WrongSubject`] when the record kept under `subject` belongs to another
-/// subject, [`StateStoreError::WouldOverwriteNewer`] when it is in a newer schema, and
-/// [`StateStoreError::Storage`] when the storage failed. Nothing is written on any of them.
+/// Refuses non-current input, foreign/unsupported records, encoding failures, and storage errors.
 pub fn persist<S: AvaiaStateStore>(
     store: &mut S,
     subject: &AvaiaSubject,
@@ -174,41 +181,41 @@ pub fn persist<S: AvaiaStateStore>(
             schema_version: state.schema_version,
         });
     }
-    if let Some(kept) = store.load(subject).map_err(StateStoreError::Storage)? {
-        if &kept.subject != subject {
-            return Err(StateStoreError::WrongSubject);
-        }
-        if kept.state.schema_version > AVAIA_STATE_SCHEMA_VERSION {
-            return Err(StateStoreError::WouldOverwriteNewer {
-                schema_version: kept.state.schema_version,
-            });
+    let payload = serde_json::to_vec(state).map_err(|_| StateStoreError::EncodeFailed)?;
+    let record = StoredAvaiaState {
+        subject: subject.clone(),
+        schema_version: state.schema_version,
+        payload,
+    };
+
+    match store
+        .replace_guarded(subject, REPLACEABLE_SCHEMAS, record)
+        .map_err(StateStoreError::Storage)?
+    {
+        GuardedReplace::Replaced => Ok(()),
+        GuardedReplace::WrongSubject => Err(StateStoreError::WrongSubject),
+        GuardedReplace::SchemaNotReplaceable { schema_version } => {
+            Err(StateStoreError::WouldOverwriteUnsupported { schema_version })
         }
     }
-    store
-        .replace(StoredAvaiaState {
-            subject: subject.clone(),
-            state: state.clone(),
-        })
-        .map_err(StateStoreError::Storage)
 }
 
 #[cfg(test)]
 mod tests {
     use super::{
-        AvaiaStateStore, AvaiaSubject, EmptySubject, Restored, StateStoreError, StoredAvaiaState,
-        persist, restore,
+        AvaiaStateStore, AvaiaSubject, EmptySubject, GuardedReplace, Restored, StateStoreError,
+        StoredAvaiaState, persist, restore,
     };
     use crate::{
         AVAIA_STATE_SCHEMA_VERSION, AvaiaIntent, AvaiaState, DecisionMenu, MapTargetId, StopAction,
     };
     use std::collections::HashMap;
 
-    /// A store in memory: records by the key they were written under, and a switch that
-    /// makes the next write fail, to show a failed write changes nothing.
     #[derive(Default)]
     struct Memory {
         records: HashMap<String, StoredAvaiaState>,
         fail_next_write: bool,
+        install_before_guard: Option<(String, StoredAvaiaState)>,
     }
 
     impl AvaiaStateStore for Memory {
@@ -218,13 +225,31 @@ mod tests {
             Ok(self.records.get(subject.as_str()).cloned())
         }
 
-        fn replace(&mut self, record: StoredAvaiaState) -> Result<(), Self::Error> {
+        fn replace_guarded(
+            &mut self,
+            subject: &AvaiaSubject,
+            replaceable_schema_versions: &[u16],
+            record: StoredAvaiaState,
+        ) -> Result<GuardedReplace, Self::Error> {
+            if let Some((key, concurrent)) = self.install_before_guard.take() {
+                self.records.insert(key, concurrent);
+            }
+
+            if let Some(kept) = self.records.get(subject.as_str()) {
+                if &kept.subject != subject {
+                    return Ok(GuardedReplace::WrongSubject);
+                }
+                if !replaceable_schema_versions.contains(&kept.schema_version) {
+                    return Ok(GuardedReplace::SchemaNotReplaceable {
+                        schema_version: kept.schema_version,
+                    });
+                }
+            }
             if std::mem::take(&mut self.fail_next_write) {
                 return Err("disk full");
             }
-            self.records
-                .insert(record.subject.as_str().to_owned(), record);
-            Ok(())
+            self.records.insert(subject.as_str().to_owned(), record);
+            Ok(GuardedReplace::Replaced)
         }
     }
 
@@ -244,6 +269,14 @@ mod tests {
         state
     }
 
+    fn stored(subject: AvaiaSubject, state: &AvaiaState) -> StoredAvaiaState {
+        StoredAvaiaState {
+            subject,
+            schema_version: state.schema_version,
+            payload: serde_json::to_vec(state).expect("state encodes"),
+        }
+    }
+
     #[test]
     fn a_subject_is_never_empty() {
         assert_eq!(AvaiaSubject::new("  "), Err(EmptySubject));
@@ -257,28 +290,21 @@ mod tests {
         assert_eq!(restored.into_state(), AvaiaState::new());
     }
 
-    /// The point of the module: she outlives the runtime. A new runtime, a new model, a model
-    /// evicted from cache — restoring by the same subject gives back the same state.
     #[test]
     fn what_is_kept_comes_back_for_the_same_subject() {
         let mut store = Memory::default();
         let her = subject("avaia:1");
         let state = walking_to("lake");
-
         persist(&mut store, &her, &state).expect("persist");
         assert_eq!(restore(&store, &her), Ok(Restored::State(state)));
     }
 
     #[test]
-    fn another_subjects_record_is_never_read_as_hers() {
+    fn another_subjects_record_is_never_read_or_replaced_as_hers() {
         let mut store = Memory::default();
-        // A storage bug keeps the wrong record under her key.
         store.records.insert(
             "avaia:1".into(),
-            StoredAvaiaState {
-                subject: subject("avaia:2"),
-                state: walking_to("park"),
-            },
+            stored(subject("avaia:2"), &walking_to("park")),
         );
         let her = subject("avaia:1");
 
@@ -292,20 +318,21 @@ mod tests {
 
     #[test]
     fn a_v1_record_is_read_and_upgraded() {
-        let stored: StoredAvaiaState = serde_json::from_str(
-            r#"{
-                "subject": "avaia:1",
-                "state": {
-                    "schema_version": 1,
-                    "intent": "Explore",
-                    "last_proposal": null,
-                    "pause_reason": "OwnerControl"
-                }
-            }"#,
-        )
-        .expect("v1 record reads");
+        let payload = br#"{
+            "schema_version": 1,
+            "intent": "Explore",
+            "last_proposal": null,
+            "pause_reason": "OwnerControl"
+        }"#;
         let mut store = Memory::default();
-        store.records.insert("avaia:1".into(), stored);
+        store.records.insert(
+            "avaia:1".into(),
+            StoredAvaiaState {
+                subject: subject("avaia:1"),
+                schema_version: 1,
+                payload: payload.to_vec(),
+            },
+        );
 
         let Ok(Restored::State(state)) = restore(&store, &subject("avaia:1")) else {
             panic!("a v1 record restores");
@@ -315,14 +342,12 @@ mod tests {
     }
 
     #[test]
-    fn a_newer_schema_is_quarantined_and_never_written_over() {
+    fn a_future_schema_is_quarantined_without_decoding_its_payload() {
         let her = subject("avaia:1");
         let newer = StoredAvaiaState {
             subject: her.clone(),
-            state: AvaiaState {
-                schema_version: AVAIA_STATE_SCHEMA_VERSION + 1,
-                ..walking_to("lake")
-            },
+            schema_version: AVAIA_STATE_SCHEMA_VERSION + 1,
+            payload: b"future bytes that are not AvaiaState JSON".to_vec(),
         };
         let mut store = Memory::default();
         store.records.insert("avaia:1".into(), newer.clone());
@@ -334,15 +359,69 @@ mod tests {
                 schema_version: AVAIA_STATE_SCHEMA_VERSION + 1
             }
         );
-        // She runs, from fresh, without touching what she cannot read.
         assert_eq!(restored.into_state(), AvaiaState::new());
         assert_eq!(
             persist(&mut store, &her, &AvaiaState::new()),
-            Err(StateStoreError::WouldOverwriteNewer {
+            Err(StateStoreError::WouldOverwriteUnsupported {
                 schema_version: AVAIA_STATE_SCHEMA_VERSION + 1
             })
         );
         assert_eq!(store.records["avaia:1"], newer);
+    }
+
+    #[test]
+    fn a_concurrent_future_write_cannot_be_overwritten() {
+        let mut store = Memory::default();
+        let her = subject("avaia:1");
+        persist(&mut store, &her, &walking_to("lake")).expect("initial persist");
+
+        let newer = StoredAvaiaState {
+            subject: her.clone(),
+            schema_version: AVAIA_STATE_SCHEMA_VERSION + 1,
+            payload: b"future".to_vec(),
+        };
+        store.install_before_guard = Some(("avaia:1".into(), newer.clone()));
+
+        assert_eq!(
+            persist(&mut store, &her, &walking_to("park")),
+            Err(StateStoreError::WouldOverwriteUnsupported {
+                schema_version: AVAIA_STATE_SCHEMA_VERSION + 1
+            })
+        );
+        assert_eq!(store.records["avaia:1"], newer);
+    }
+
+    #[test]
+    fn a_known_schema_with_bad_or_mismatched_payload_is_rejected() {
+        let her = subject("avaia:1");
+        let mut store = Memory::default();
+        store.records.insert(
+            "avaia:1".into(),
+            StoredAvaiaState {
+                subject: her.clone(),
+                schema_version: AVAIA_STATE_SCHEMA_VERSION,
+                payload: b"not json".to_vec(),
+            },
+        );
+        assert_eq!(
+            restore(&store, &her),
+            Err(StateStoreError::InvalidPayload {
+                schema_version: AVAIA_STATE_SCHEMA_VERSION
+            })
+        );
+
+        store.records.insert(
+            "avaia:1".into(),
+            StoredAvaiaState {
+                subject: her.clone(),
+                schema_version: 1,
+                payload: serde_json::to_vec(&AvaiaState::new()).expect("encode"),
+            },
+        );
+        assert_eq!(
+            restore(&store, &her),
+            Err(StateStoreError::InvalidPayload { schema_version: 1 })
+        );
     }
 
     #[test]
