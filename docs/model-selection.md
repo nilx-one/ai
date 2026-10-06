@@ -49,8 +49,9 @@ is not a claim about what Avaia may ever do, and a later slice that needs langua
 reopen this decision.
 
 What that makes the model's output is a **choice from a closed set the product already
-resolved** — this crate's `AvaiaDecision`, which is `NavigateTo { target }` over an
-opaque `MapTargetId` the world layer minted, or `StopNavigation`. Prose is not the product.
+resolved** — this crate's `MenuDecision`, whose record is `AvaiaDecision`:
+`NavigateTo { target }` over an opaque `MapTargetId` the world layer minted, or
+`StopNavigation`. Prose is not the product.
 A sentence a person reads is not the product either.
 
 Three consequences, and they are the whole reason this analysis was redone:

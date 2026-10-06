@@ -32,7 +32,7 @@ The runtime primitives below already exist. The gap is that none of them has bee
 | Piece | Where | What it does |
 |---|---|---|
 | A target-bound decision | `src/decision.rs` — `DecisionMenu` | Avaia chooses among `MapTargetId`s a caller already resolved; it cannot mint one. Grammar and parse enforce this twice. |
-| A movement decision | `src/lib.rs` — `AvaiaDecision::NavigateTo{target}` / `StopNavigation`; `AvaiaState::decide` | What Avaia decided, carried out as made. It does not go through `RuntimeSession::propose_candidates`: moving her body is not a world mutation, so there is nothing to dispose of. |
+| A movement decision | `src/decision.rs` — `MenuDecision`; `src/lib.rs` — `AvaiaDecision::NavigateTo{target}` / `StopNavigation`; `AvaiaState::decide` | What Avaia decided, carried out as made. `AvaiaState::decide` takes only a `MenuDecision`, which only `DecisionMenu::decide` makes; `AvaiaDecision` is its readable record and moves nothing. It does not go through `RuntimeSession::propose_candidates`: moving her body is not a world mutation, so there is nothing to dispose of. |
 | The owner's influence | `src/lib.rs` — `OwnerWaypoint`; `AvaiaState::head_for` / `arrive` | A navigation position the owner set. She heads there, then carries on with her own decisions. |
 | The autonomy gate | `src/lib.rs` — `AvaiaControlMode::Spectate -> ActivationState::Active` | The only mode in which the runtime is active at all. Manual quiesces; Offline is dormant. |
 | A reserved observation slot | `nilx-one/core` `docs/presence-journal.md`; mirrored (not yet widened) in `nilx-one/web` `packages/presence-contract/src/index.ts` | `VisitRecord.source` names `"avaia"` as reserved for exactly this later phase. The TypeScript type today only admits `"self"`. |
@@ -313,7 +313,10 @@ Stated so this document does not silently pick an answer by omission:
     inert, never hidden.
 12. **MWL12.** There is no permission in a walk. A decision Avaia makes is carried out as made:
     nothing admits a step, grants a walk-wide scope, or waits on an owner's approval. Bounds
-    come before the choice (MWL3, MWL8, MWL2), never after it.
+    come before the choice (MWL3, MWL8, MWL2), never after it. The type holds this: what
+    `AvaiaState::decide` carries out is a `MenuDecision`, which cannot be built, cloned or
+    deserialized outside `DecisionMenu`, so no decision moves her without having been one of
+    the choices the world layer resolved.
 13. **MWL13.** An owner influences where Avaia goes only by setting a navigation position
     (`OwnerWaypoint`). She heads there and then carries on with her own decisions; a position
     is never a standing command and never a veto.

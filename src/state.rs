@@ -11,7 +11,7 @@
 //! becomes what she heads for next ([`AvaiaState::head_for`]), and once she arrives she is
 //! back to her own choices ([`AvaiaState::arrive`]).
 
-use crate::{AvaiaDecision, MapTargetId, OwnerWaypoint};
+use crate::{AvaiaDecision, MapTargetId, MenuDecision, OwnerWaypoint};
 use serde::{Deserialize, Serialize};
 
 /// v2 renamed `last_proposal` to `last_decision` and the pause reasons that spoke of
@@ -71,7 +71,12 @@ impl AvaiaState {
 
     /// She decided. The decision is what she now does — walking to a target, or stopping —
     /// with nothing between the choice and the act.
-    pub fn decide(&mut self, decision: AvaiaDecision) {
+    ///
+    /// It takes a [`MenuDecision`], never a bare [`AvaiaDecision`]: what she carries out is
+    /// always one of the choices a [`crate::DecisionMenu`] offered, which is where a walk is
+    /// kept sound.
+    pub fn decide(&mut self, decision: MenuDecision) {
+        let decision = decision.into_decision();
         self.intent = match &decision {
             AvaiaDecision::NavigateTo { target } => Some(AvaiaIntent::NavigateTo(target.clone())),
             AvaiaDecision::StopNavigation => Some(AvaiaIntent::Explore),
@@ -140,10 +145,21 @@ pub struct AvaiaModelContext {
 #[cfg(test)]
 mod tests {
     use super::{AVAIA_STATE_SCHEMA_VERSION, AvaiaIntent, AvaiaPauseReason, AvaiaState};
-    use crate::{AvaiaDecision, MapTargetId, OwnerWaypoint};
+    use crate::{
+        AvaiaDecision, DecisionMenu, MapTargetId, MenuDecision, OwnerWaypoint, StopAction,
+    };
 
     fn target(value: &str) -> MapTargetId {
         MapTargetId::new(value).expect("target")
+    }
+
+    /// A decision the way she makes one: chosen from a menu.
+    fn chosen(decoded: &str) -> MenuDecision {
+        let targets = [target("lake"), target("park")];
+        DecisionMenu::new(&targets, StopAction::Offered)
+            .expect("menu")
+            .decide(decoded)
+            .expect("an offered choice")
     }
 
     #[test]
@@ -201,13 +217,11 @@ mod tests {
         let mut state = AvaiaState::new();
         state.pause_reason = Some(AvaiaPauseReason::NothingToChoose);
 
-        state.decide(AvaiaDecision::NavigateTo {
-            target: target("lake"),
-        });
+        state.decide(chosen("navigate lake"));
         assert_eq!(state.intent, Some(AvaiaIntent::NavigateTo(target("lake"))));
         assert_eq!(state.pause_reason, None);
 
-        state.decide(AvaiaDecision::StopNavigation);
+        state.decide(chosen("stop"));
         assert_eq!(state.intent, Some(AvaiaIntent::Explore));
         assert_eq!(state.last_decision, Some(AvaiaDecision::StopNavigation));
     }
@@ -215,9 +229,7 @@ mod tests {
     #[test]
     fn an_owner_position_is_where_she_heads_then_she_is_her_own_again() {
         let mut state = AvaiaState::new();
-        state.decide(AvaiaDecision::NavigateTo {
-            target: target("park"),
-        });
+        state.decide(chosen("navigate park"));
 
         state.head_for(OwnerWaypoint {
             target: target("square"),

@@ -22,7 +22,10 @@ The contract (schema v2) stores only bounded product vocabulary:
 - the current pause reason.
 
 There is no pending step. A decision is what Avaia does from the moment she makes it
-(`AvaiaState::decide`); nothing admits or approves it. An owner's navigation position
+(`AvaiaState::decide`); nothing admits or approves it. `decide` takes a `MenuDecision`, which
+only `DecisionMenu::decide` makes, so what she carries out was always one of the offered
+choices. The stored `last_decision` is the `AvaiaDecision` record of it: readable, and never
+something `decide` accepts back. An owner's navigation position
 becomes what she heads for (`AvaiaState::head_for`) and, once she arrives, she is back to her
 own choices (`AvaiaState::arrive`).
 

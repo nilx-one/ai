@@ -11,7 +11,7 @@ mod state;
 use aiai_runtime::ActivationState;
 use serde::{Deserialize, Serialize};
 
-pub use decision::{DecisionError, DecisionMenu, DecisionMenuError, StopAction};
+pub use decision::{DecisionError, DecisionMenu, DecisionMenuError, MenuDecision, StopAction};
 pub use inference::{
     Admission, DeviceCapability, DeviceLimit, Ineligible, Licence, LocalModel, MemoryBudget,
     ModelFamily, default_local_model, eligible_local_models, find_local_model, runtime_floor,
@@ -72,7 +72,7 @@ impl From<MapTargetId> for String {
     }
 }
 
-/// What Avaia decided to do next.
+/// What Avaia decided to do next, as a record.
 ///
 /// Where she goes is hers. A decision is carried out as it was made: nothing admits it,
 /// approves it, or grants a scope for it, step by step or once per walk. Moving her body is
@@ -82,6 +82,10 @@ impl From<MapTargetId> for String {
 /// ([`DecisionMenu`]), on ground she may walk on, and only while she is at the wheel
 /// ([`AvaiaControlMode::Spectate`]). An owner influences her only through an
 /// [`OwnerWaypoint`].
+///
+/// This type is what a decision says, for state and for a model's context. Anyone can write
+/// one, so it moves nothing: [`AvaiaState::decide`] carries out only a [`MenuDecision`],
+/// which only a [`DecisionMenu`] makes.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AvaiaDecision {
     NavigateTo { target: MapTargetId },
@@ -102,18 +106,6 @@ impl std::fmt::Display for NavigationError {
 }
 
 impl std::error::Error for NavigationError {}
-
-impl AvaiaDecision {
-    /// Builds a decision to walk to an already resolved map target.
-    ///
-    /// # Errors
-    /// Returns [`NavigationError::EmptyTargetId`] when `target_id` is empty.
-    pub fn navigate_to(target_id: impl Into<String>) -> Result<Self, NavigationError> {
-        Ok(Self::NavigateTo {
-            target: MapTargetId::new(target_id)?,
-        })
-    }
-}
 
 /// Who is at the wheel: 0x1 owner/AI runtime modes.
 ///
@@ -154,23 +146,8 @@ mod tests {
     use super::{AvaiaControlMode, AvaiaDecision, MapTargetId, NavigationError};
 
     #[test]
-    fn navigate_to_keeps_target_opaque() {
-        let decision = AvaiaDecision::navigate_to("map-target-42").unwrap();
-
-        assert_eq!(
-            decision,
-            AvaiaDecision::NavigateTo {
-                target: MapTargetId::new("map-target-42").unwrap(),
-            }
-        );
-    }
-
-    #[test]
     fn empty_target_is_rejected() {
-        assert_eq!(
-            AvaiaDecision::navigate_to("   "),
-            Err(NavigationError::EmptyTargetId)
-        );
+        assert_eq!(MapTargetId::new("   "), Err(NavigationError::EmptyTargetId));
     }
 
     #[test]
