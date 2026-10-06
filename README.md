@@ -2,12 +2,13 @@
 
 The product-specific artificial intelligence runtime for 0x1.
 
-AI behavior remains behind the 0x1 protocol boundary. Models and agents may propose, plan, simulate, or select allowed actions; protocol truth and deterministic shared product behavior remain owned by the canonical `nilx-one/0x1` specification and `nilx-one/core`.
+Protocol truth and deterministic shared product behavior remain owned by the canonical `nilx-one/0x1` specification and `nilx-one/core`. Where Avaia walks is not protocol truth, and it is hers: she decides, and she goes.
 
 ```text
-model decision != authority
-proposal != interaction completion
-simulation != BondChain fact
+avaia decided  -> avaia went; nothing admits or approves a step
+owner          -> influences her only by setting a navigation position
+a walk         != presence, interaction or BondChain fact
+model output   != protocol truth; simulation != BondChain fact
 ```
 
 ## Local inference

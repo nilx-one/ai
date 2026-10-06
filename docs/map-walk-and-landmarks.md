@@ -13,7 +13,7 @@ does not itself change `0x1` or `core`.
 camera:
 
 ```text
-movement       -> a sequence of proposed, admitted NavigateTo steps
+movement       -> a sequence of Avaia's own NavigateTo decisions, each carried out as made
 observation    -> a local record of what was already visible while moving
 discovery      -> something on the map worth walking toward
 ```
@@ -32,7 +32,8 @@ The runtime primitives below already exist. The gap is that none of them has bee
 | Piece | Where | What it does |
 |---|---|---|
 | A target-bound decision | `src/decision.rs` — `DecisionMenu` | Avaia chooses among `MapTargetId`s a caller already resolved; it cannot mint one. Grammar and parse enforce this twice. |
-| A movement proposal | `src/lib.rs` — `AvaiaActionProposal::NavigateTo{target}` / `StopNavigation` | The shape that would go into `RuntimeSession::propose_candidates`. Still a proposal — admission is a separate boundary. |
+| A movement decision | `src/decision.rs` — `MenuDecision`; `src/lib.rs` — `AvaiaDecision::NavigateTo{target}` / `StopNavigation`; `AvaiaState::decide` | What Avaia decided, carried out as made. `AvaiaState::decide` takes only a `MenuDecision`, which only `DecisionMenu::decide` makes; `AvaiaDecision` is its readable record and moves nothing. It does not go through `RuntimeSession::propose_candidates`: moving her body is not a world mutation, so there is nothing to dispose of. |
+| The owner's influence | `src/lib.rs` — `OwnerWaypoint`; `AvaiaState::head_for` / `arrive` | A navigation position the owner set. She heads there, then carries on with her own decisions. |
 | The autonomy gate | `src/lib.rs` — `AvaiaControlMode::Spectate -> ActivationState::Active` | The only mode in which the runtime is active at all. Manual quiesces; Offline is dormant. |
 | A reserved observation slot | `nilx-one/core` `docs/presence-journal.md`; mirrored (not yet widened) in `nilx-one/web` `packages/presence-contract/src/index.ts` | `VisitRecord.source` names `"avaia"` as reserved for exactly this later phase. The TypeScript type today only admits `"self"`. |
 | The fog | `nilx-one/web` `packages/map-shade`, `packages/presence-idb` (`ShadeSource.litCells()`) | Already computes lit-cell membership from the journal. Nothing new needed to know what is "not in fog." |
@@ -40,10 +41,11 @@ The runtime primitives below already exist. The gap is that none of them has bee
 
 ## Design: movement and observation
 
-### 1. A walk is a chain of the existing proposal, nothing new
+### 1. A walk is a chain of her own decisions, nothing new
 
 Each step is: world layer resolves candidate `MapTargetId`s for the current position → `DecisionMenu`
-→ Avaia picks `NavigateTo` or `StopNavigation` → admission → effect. No new proposal type.
+→ Avaia picks `NavigateTo` or `StopNavigation` → she goes. There is no admission step between
+her choice and the walk, and no new decision type.
 Landmarks, once they exist, are just another kind of thing a `MapTargetId` can refer to. §2
 states where those candidates may come from at Stage 1.
 
@@ -71,8 +73,8 @@ duplicate it. It only says where Avaia may stand and move inside it:
 - **Avaia's own movement must not light new cells.** This is not free to assume: `map-shade`'s
   `createShadeSource` lights whatever cell a new `VisitRecord` names, regardless of `source`
   (`presence-idb/src/index.ts`, the `store.subscribe` callback in `createShadeSource`). Because
-  every candidate is already lit by construction (the point above), an admitted `NavigateTo`
-  step can only ever write a `source: "avaia"` record into a cell that was lit before the step
+  every candidate is already lit by construction (the point above), a `NavigateTo` step can
+  only ever write a `source: "avaia"` record into a cell that was lit before the step
   was offered — so this invariant holds by construction, not by a special case added to
   `map-shade`. It is stated here because it would silently stop holding if a later change ever
   let candidate resolution reach past the lit boundary.
@@ -81,18 +83,29 @@ Only the person's own movement expands the lit boundary at Stage 1. Whether a la
 Avaia's own walk reveal fog is an explicit, separate product decision — not a default this
 document or its code picks by omission.
 
-### 3. The gate stays exactly SPECTATE, and nothing wider
+### 3. There is no permission: Avaia wanted to go, Avaia went
 
-`AvaiaControlMode::Spectate` is already the only mode that reaches `ActivationState::Active`.
-This workstream adds no second gate and no background-life path: leaving SPECTATE mid-walk
-quiesces it the same way it quiesces anything else running.
+Where Avaia walks is hers. A walk has no notion of permission at all: no per-step admission,
+no delegation scope granted once per walk, no approval an owner gives or withholds. What she
+decides among the offered targets is what she does (`AvaiaState::decide`).
 
-What is genuinely open, and belongs to the authority/delegation contract rather than to this
-document: whether each `NavigateTo` step needs its own admission, or whether SPECTATE grants a
-bounded delegation scope for "a walk of up to N steps" that is admitted once. `0x1`'s current
-text says only that authorization is bounded by contract and is not unlimited autonomy
-(`device-runtime-and-control.md`, DRC6) — it does not yet say which of these two shapes a walk
-takes. This document does not resolve it.
+What keeps a walk sound sits before the choice, never after it: she chooses only among targets
+the world layer resolved (MWL3), only on ground she may walk on (MWL8), and only while she is at
+the wheel. `AvaiaControlMode::Spectate` is the only mode that reaches `ActivationState::Active`;
+it says when she lives, not what she may do while she does. Leaving SPECTATE mid-walk quiesces
+it the same way it quiesces anything else running, and there is no background-life path.
+
+An owner influences her in one way: by setting a navigation position (`OwnerWaypoint`). She
+heads there (`AvaiaState::head_for`) and, once there, carries on with her own decisions from
+where she stands (`AvaiaState::arrive`). A position is a place put on her map, not a command
+she waits for; nothing else an owner does steers her walk.
+
+This sits beside `0x1`, not against it. DRC6 (`device-runtime-and-control.md`) bounds
+*authorization* by contract: what an AI Bond may do with authority, such as interacting or
+forming BondChain. Moving Avaia's body asserts none of that. It is not presence, attendance, an
+interaction or a BondChain fact, so it is not an authorized act and DRC6 has nothing to bound
+here. If `0x1` ever treats her movement as an authorized act, that conflicts with this section
+and is raised there, not resolved here by adding a permission step.
 
 ### 4. Observation is a cache until someone decides to make it durable
 
@@ -212,7 +225,7 @@ whose cell is not in `ShadeSource.litCells()` renders but does not respond to a 
 never passed into world-layer candidate resolution for `DecisionMenu`. The gate lives in the
 client's interaction handling, not in what the server returns.
 
-This narrows open question 2 below without closing it: authorship for a first `art_register`
+This narrows open question 1 below without closing it: authorship for a first `art_register`
 is operator-curated (OSM-seeded plus manual, admin-gated), not creator-authored in the existing
 business sense. Moderation workflow, review responsibility, and expiry for manual entries
 remain open.
@@ -223,13 +236,13 @@ remain open.
 ([Avaia walks the world](https://github.com/nilx-one/web/blob/master/docs/avaia-walk.md)).
 It is recorded here so this document does not read as if it never happened:
 
-- **Commanded walks are not `NavigateTo`.** A person taps open ground and the Avaia's body
-  walks there. That is the owner moving a presentation body, the same way the Dock's wheel
-  is presentation, not a proposal the Avaia makes. No `DecisionMenu` is built, no model is
-  asked, and nothing is admitted. MWL1 and MWL3 govern Avaia's own choices, and this is not
-  one.
+- **A tap is the owner's navigation position, not her `NavigateTo`.** A person taps open
+  ground and the Avaia walks there, stands a moment, and carries on by herself from that
+  point. That is MWL13, the owner's one way to influence her; it is not a decision she made,
+  so no `DecisionMenu` is built and no model is asked. MWL1 and MWL3 govern her own choices,
+  and this is not one.
 - **The fog is respected at the tap.** A tap into ground this device has not revealed is
-  refused, which is the MWL8 boundary applied to a person's command. The only exception is
+  refused, which is the MWL8 boundary applied to a position the owner sets. The only exception is
   the ground within 50 m of the device, where the person is standing. Avaia's walk writes no
   `VisitRecord` and lights no cell (MWL9).
 - **Curiosity reads basemap `pois`, not a landmark projection.** When the person's own device
@@ -261,20 +274,19 @@ It is recorded here so this document does not read as if it never happened:
 
 Stated so this document does not silently pick an answer by omission:
 
-1. Per-step admission versus a bounded walk-delegation scope (§2).
-2. Moderation workflow, review responsibility, and expiry for `art_register` entries — the
+1. Moderation workflow, review responsibility, and expiry for `art_register` entries — the
    authorship direction itself (OSM-seeded plus manual) is narrowed above, but the same open
    items `12-map-architecture.md` already lists for creator projections (who moderates, what
    expires, what a rejection looks like) are not resolved by naming the source.
-3. Whether a landmark projection is versioned independently of `physical_presences[]` /
+2. Whether a landmark projection is versioned independently of `physical_presences[]` /
    `digital_presence?` or folds into a fourth field of the same `map.registry` shape.
-4. Which service owns the `art_register` table — a new one, or `identity` extended with a
+3. Which service owns the `art_register` table — a new one, or `identity` extended with a
    second domain beside `bond_locations` — and the exact row shape, which waits on the same
    `0x1` decision the landmark projection's minimum shape depends on.
 
 ## Invariants
 
-1. **MWL1.** A walk is a sequence of the existing `NavigateTo` / `StopNavigation` proposal;
+1. **MWL1.** A walk is a sequence of the existing `NavigateTo` / `StopNavigation` decision;
    this workstream introduces no second action type for movement.
 2. **MWL2.** Only `AvaiaControlMode::Spectate` reaches the activation state a walk can run in.
 3. **MWL3.** Avaia never mints a `MapTargetId`; the world layer resolves candidates before a
@@ -289,7 +301,7 @@ Stated so this document does not silently pick an answer by omission:
 8. **MWL8.** At Stage 1, every `DecisionMenu` candidate is drawn from `ShadeSource.litCells()`;
    a fogged cell is never constructed as a candidate. This gates interaction and Avaia's
    choice, never rendering — see MWL11.
-9. **MWL9.** At Stage 1, only a person's own device observations light a cell. An admitted
+9. **MWL9.** At Stage 1, only a person's own device observations light a cell. A
    `NavigateTo` step must never be the first thing to light the cell it targets.
 10. **MWL10.** `art_register` rows are product data, not protocol truth: an entry is never
     offered to `DecisionMenu`, and never asserted as `map.registry` content, BondChain,
@@ -299,6 +311,15 @@ Stated so this document does not silently pick an answer by omission:
     entry its viewport covers, fog included. Only interaction (tap, and candidacy for
     `DecisionMenu`) is gated by `ShadeSource.litCells()`; a fogged landmark is visible and
     inert, never hidden.
+12. **MWL12.** There is no permission in a walk. A decision Avaia makes is carried out as made:
+    nothing admits a step, grants a walk-wide scope, or waits on an owner's approval. Bounds
+    come before the choice (MWL3, MWL8, MWL2), never after it. The type holds this: what
+    `AvaiaState::decide` carries out is a `MenuDecision`, which cannot be built, cloned or
+    deserialized outside `DecisionMenu`, so no decision moves her without having been one of
+    the choices the world layer resolved.
+13. **MWL13.** An owner influences where Avaia goes only by setting a navigation position
+    (`OwnerWaypoint`). She heads there and then carries on with her own decisions; a position
+    is never a standing command and never a veto.
 
 ## Related
 

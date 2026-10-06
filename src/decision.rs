@@ -17,12 +17,65 @@
 //! either way. It also holds if a future decode is unconstrained, partial, or produced by a
 //! provider that ignores grammars.
 //!
-//! What leaves is an [`AvaiaActionProposal`] built from the caller's own [`MapTargetId`] —
-//! never from text a model produced. A model may point at a target; it may not mint one. And
-//! a proposal is still computation: the authority boundary decides whether anything is
-//! attempted.
+//! What leaves is a [`MenuDecision`] built from the caller's own [`MapTargetId`] —
+//! never from text a model produced. A model may point at a target; it may not mint one.
+//! That is the whole boundary, and it is a type: a [`MenuDecision`] cannot be built, cloned
+//! or deserialized outside this module, and [`crate::AvaiaState::decide`] carries out
+//! nothing else. Nothing stands after it: what Avaia decides among the offered targets is
+//! what she does, with no admission and no approval of the step.
 
-use crate::{AvaiaActionProposal, MapTargetId};
+use crate::{AvaiaDecision, MapTargetId};
+
+/// A decision made from a [`DecisionMenu`]: the only thing [`crate::AvaiaState::decide`]
+/// carries out.
+///
+/// Its field is private and it is neither `Clone` nor `Deserialize`, so outside this module
+/// the one way to hold one is [`DecisionMenu::decide`]. Every decision that moves Avaia
+/// therefore went through a menu of targets the world layer resolved (MWL3, MWL12): the
+/// boundary is enforced by the type, not kept by convention. Its [`AvaiaDecision`] is the
+/// record of it, and that record can be read but never turned back into one of these.
+///
+/// A decision cannot be written by hand:
+///
+/// ```compile_fail
+/// use nilx_one_ai::{AvaiaDecision, MenuDecision};
+///
+/// let forged = MenuDecision(AvaiaDecision::StopNavigation);
+/// ```
+///
+/// and a bare record is not something she carries out:
+///
+/// ```compile_fail
+/// use nilx_one_ai::{AvaiaDecision, AvaiaState};
+///
+/// AvaiaState::new().decide(AvaiaDecision::StopNavigation);
+/// ```
+///
+/// Only a menu makes one:
+///
+/// ```
+/// use nilx_one_ai::{AvaiaState, DecisionMenu, MapTargetId, StopAction};
+///
+/// let targets = [MapTargetId::new("lake").unwrap()];
+/// let menu = DecisionMenu::new(&targets, StopAction::Withheld).unwrap();
+/// AvaiaState::new().decide(menu.decide("navigate lake").unwrap());
+/// ```
+#[derive(Debug, PartialEq, Eq)]
+pub struct MenuDecision(AvaiaDecision);
+
+impl MenuDecision {
+    /// What was decided.
+    #[must_use]
+    pub const fn decision(&self) -> &AvaiaDecision {
+        &self.0
+    }
+
+    /// The record of the decision, once it has been carried out.
+    #[must_use]
+    pub fn into_decision(self) -> AvaiaDecision {
+        self.0
+    }
+}
 
 /// Whether stopping is one of the choices on this turn.
 ///
@@ -135,7 +188,7 @@ impl<'a> DecisionMenu<'a> {
         grammar
     }
 
-    /// Reads one decoded decision back as a proposal over an offered target.
+    /// Reads one decoded decision back as a decision over an offered target.
     ///
     /// Surrounding whitespace is ignored, because a decode routinely carries a trailing
     /// newline. Nothing else is repaired: a decision this menu does not contain is refused
@@ -144,12 +197,12 @@ impl<'a> DecisionMenu<'a> {
     /// # Errors
     ///
     /// Returns [`DecisionError`] when the text is not one of this menu's choices.
-    pub fn decide(&self, decoded: &str) -> Result<AvaiaActionProposal, DecisionError> {
+    pub fn decide(&self, decoded: &str) -> Result<MenuDecision, DecisionError> {
         let decoded = decoded.trim();
 
         if decoded == STOP {
             return match self.stop {
-                StopAction::Offered => Ok(AvaiaActionProposal::StopNavigation),
+                StopAction::Offered => Ok(MenuDecision(AvaiaDecision::StopNavigation)),
                 StopAction::Withheld => Err(DecisionError::StopNotOffered),
             };
         }
@@ -160,8 +213,10 @@ impl<'a> DecisionMenu<'a> {
         self.targets
             .iter()
             .find(|target| target.as_str() == named)
-            .map(|target| AvaiaActionProposal::NavigateTo {
-                target: target.clone(),
+            .map(|target| {
+                MenuDecision(AvaiaDecision::NavigateTo {
+                    target: target.clone(),
+                })
             })
             .ok_or(DecisionError::TargetNotOffered)
     }
@@ -191,8 +246,8 @@ fn literal(value: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{DecisionError, DecisionMenu, DecisionMenuError, StopAction};
-    use crate::{AvaiaActionProposal, MapTargetId};
+    use super::{DecisionError, DecisionMenu, DecisionMenuError, MenuDecision, StopAction};
+    use crate::{AvaiaDecision, MapTargetId};
 
     fn target(value: &str) -> MapTargetId {
         MapTargetId::new(value).expect("non-empty target")
@@ -268,13 +323,14 @@ mod tests {
     }
 
     #[test]
-    fn an_offered_target_decodes_to_a_proposal_over_the_callers_value() {
+    fn an_offered_target_decodes_to_a_decision_over_the_callers_value() {
         let targets = two_targets();
         let menu = DecisionMenu::new(&targets, StopAction::Offered).expect("menu");
 
         assert_eq!(
-            menu.decide("navigate map-target-2\n"),
-            Ok(AvaiaActionProposal::NavigateTo {
+            menu.decide("navigate map-target-2\n")
+                .map(MenuDecision::into_decision),
+            Ok(AvaiaDecision::NavigateTo {
                 target: target("map-target-2")
             })
         );
@@ -301,8 +357,9 @@ mod tests {
         assert_eq!(
             DecisionMenu::new(&targets, StopAction::Offered)
                 .expect("menu")
-                .decide("  stop  "),
-            Ok(AvaiaActionProposal::StopNavigation)
+                .decide("  stop  ")
+                .map(MenuDecision::into_decision),
+            Ok(AvaiaDecision::StopNavigation)
         );
     }
 
@@ -331,8 +388,9 @@ mod tests {
         let menu = DecisionMenu::new(&targets, StopAction::Withheld).expect("menu");
 
         assert_eq!(
-            menu.decide("navigate old town square"),
-            Ok(AvaiaActionProposal::NavigateTo {
+            menu.decide("navigate old town square")
+                .map(MenuDecision::into_decision),
+            Ok(AvaiaDecision::NavigateTo {
                 target: target("old town square")
             })
         );

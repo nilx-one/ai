@@ -11,7 +11,7 @@ mod state;
 use aiai_runtime::ActivationState;
 use serde::{Deserialize, Serialize};
 
-pub use decision::{DecisionError, DecisionMenu, DecisionMenuError, StopAction};
+pub use decision::{DecisionError, DecisionMenu, DecisionMenuError, MenuDecision, StopAction};
 pub use inference::{
     Admission, DeviceCapability, DeviceLimit, Ineligible, Licence, LocalModel, MemoryBudget,
     ModelFamily, default_local_model, eligible_local_models, find_local_model, runtime_floor,
@@ -21,6 +21,16 @@ pub use routing::{AvaiaFailureReport, FailureSink, RoutedFailure, route_failure}
 pub use state::{
     AVAIA_STATE_SCHEMA_VERSION, AvaiaIntent, AvaiaModelContext, AvaiaPauseReason, AvaiaState,
 };
+
+/// A navigation position an owner set: the only way an owner influences where Avaia goes.
+///
+/// It is not a command she waits for and not a permission she needs. It is a place an owner
+/// puts on her map: she heads there, and once there carries on with her own decisions from
+/// where she stands. Nothing else an owner does steers her walk.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct OwnerWaypoint {
+    pub target: MapTargetId,
+}
 
 /// Opaque map target selected and owned by the product world layer.
 ///
@@ -33,11 +43,11 @@ impl MapTargetId {
     /// Creates a non-empty target identifier.
     ///
     /// # Errors
-    /// Returns [`NavigationProposalError::EmptyTargetId`] for an empty identifier.
-    pub fn new(value: impl Into<String>) -> Result<Self, NavigationProposalError> {
+    /// Returns [`NavigationError::EmptyTargetId`] for an empty identifier.
+    pub fn new(value: impl Into<String>) -> Result<Self, NavigationError> {
         let value = value.into();
         if value.trim().is_empty() {
-            return Err(NavigationProposalError::EmptyTargetId);
+            return Err(NavigationError::EmptyTargetId);
         }
         Ok(Self(value))
     }
@@ -49,7 +59,7 @@ impl MapTargetId {
 }
 
 impl TryFrom<String> for MapTargetId {
-    type Error = NavigationProposalError;
+    type Error = NavigationError;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         Self::new(value)
@@ -62,22 +72,32 @@ impl From<MapTargetId> for String {
     }
 }
 
-/// Product-specific action Avaia may propose.
+/// What Avaia decided to do next, as a record.
 ///
-/// This value is computation, not authority. Consumers must route it through the
-/// 0x1 authority boundary before any world mutation is attempted.
+/// Where she goes is hers. A decision is carried out as it was made: nothing admits it,
+/// approves it, or grants a scope for it, step by step or once per walk. Moving her body is
+/// not a world mutation — it asserts no presence, attendance, interaction or `BondChain` fact
+/// — so the 0x1 authority boundary has nothing to rule on here. What keeps a decision
+/// sound is upstream of it: she chooses only among targets the world layer resolved
+/// ([`DecisionMenu`]), on ground she may walk on, and only while she is at the wheel
+/// ([`AvaiaControlMode::Spectate`]). An owner influences her only through an
+/// [`OwnerWaypoint`].
+///
+/// This type is what a decision says, for state and for a model's context. Anyone can write
+/// one, so it moves nothing: [`AvaiaState::decide`] carries out only a [`MenuDecision`],
+/// which only a [`DecisionMenu`] makes.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum AvaiaActionProposal {
+pub enum AvaiaDecision {
     NavigateTo { target: MapTargetId },
     StopNavigation,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum NavigationProposalError {
+pub enum NavigationError {
     EmptyTargetId,
 }
 
-impl std::fmt::Display for NavigationProposalError {
+impl std::fmt::Display for NavigationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::EmptyTargetId => write!(f, "map target id must not be empty"),
@@ -85,24 +105,15 @@ impl std::fmt::Display for NavigationProposalError {
     }
 }
 
-impl std::error::Error for NavigationProposalError {}
+impl std::error::Error for NavigationError {}
 
-impl AvaiaActionProposal {
-    /// Builds a navigation proposal that references an already resolved map target.
-    ///
-    /// # Errors
-    /// Returns [`NavigationProposalError::EmptyTargetId`] when `target_id` is empty.
-    pub fn navigate_to(target_id: impl Into<String>) -> Result<Self, NavigationProposalError> {
-        Ok(Self::NavigateTo {
-            target: MapTargetId::new(target_id)?,
-        })
-    }
-}
-
-/// 0x1 owner/AI runtime modes.
+/// Who is at the wheel: 0x1 owner/AI runtime modes.
 ///
-/// These remain product semantics; the shared foundation only supplies the generic
-/// activation state machine that enforces when computation may run.
+/// `Spectate` is Avaia at the wheel, living her own walk while her owner watches. `Manual`
+/// is the owner at the wheel of their own Bond, and Avaia rests. A mode says when she lives,
+/// not what she may do while she does. These remain product semantics; the shared
+/// foundation only supplies the generic activation state machine that enforces when
+/// computation may run.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AvaiaControlMode {
     Spectate,
@@ -132,26 +143,11 @@ impl AvaiaControlMode {
 mod tests {
     use aiai_runtime::ActivationState;
 
-    use super::{AvaiaActionProposal, AvaiaControlMode, MapTargetId, NavigationProposalError};
-
-    #[test]
-    fn navigate_to_keeps_target_opaque() {
-        let proposal = AvaiaActionProposal::navigate_to("map-target-42").unwrap();
-
-        assert_eq!(
-            proposal,
-            AvaiaActionProposal::NavigateTo {
-                target: MapTargetId::new("map-target-42").unwrap(),
-            }
-        );
-    }
+    use super::{AvaiaControlMode, AvaiaDecision, MapTargetId, NavigationError};
 
     #[test]
     fn empty_target_is_rejected() {
-        assert_eq!(
-            AvaiaActionProposal::navigate_to("   "),
-            Err(NavigationProposalError::EmptyTargetId)
-        );
+        assert_eq!(MapTargetId::new("   "), Err(NavigationError::EmptyTargetId));
     }
 
     #[test]
@@ -170,10 +166,7 @@ mod tests {
 
     #[test]
     fn stopping_navigation_needs_no_spatial_payload() {
-        assert_eq!(
-            AvaiaActionProposal::StopNavigation,
-            AvaiaActionProposal::StopNavigation
-        );
+        assert_eq!(AvaiaDecision::StopNavigation, AvaiaDecision::StopNavigation);
     }
 
     #[test]

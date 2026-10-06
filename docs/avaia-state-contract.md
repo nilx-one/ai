@@ -3,7 +3,8 @@
 
 # Avaia state contract
 
-**Status:** v1 product contract for continuity across inference-runtime replacement.
+**Status:** v2 product contract (`AVAIA_STATE_SCHEMA_VERSION = 2`) for continuity across
+inference-runtime replacement.
 
 ## Purpose
 
@@ -14,11 +15,19 @@ evicted, or replaced.
 Product-owned state is different: it preserves Avaia's continuity without making a model
 into the subject.
 
-The v1 contract stores only bounded product vocabulary:
+The contract (schema v2) stores only bounded product vocabulary:
 
-- the current intent;
-- the last action proposal;
+- the current intent: her own target, an owner's navigation position, or her own curiosity;
+- the last decision she made;
 - the current pause reason.
+
+There is no pending step. A decision is what Avaia does from the moment she makes it
+(`AvaiaState::decide`); nothing admits or approves it. `decide` takes a `MenuDecision`, which
+only `DecisionMenu::decide` makes, so what she carries out was always one of the offered
+choices. The stored `last_decision` is the `AvaiaDecision` record of it: readable, and never
+something `decide` accepts back. An owner's navigation position
+becomes what she heads for (`AvaiaState::head_for`) and, once she arrives, she is back to her
+own choices (`AvaiaState::arrive`).
 
 It does not store a completion record. Whether an interaction happened remains owned by
 0x1/core and its BondChain semantics.
@@ -31,7 +40,7 @@ The Rust type is AvaiaState in src/state.rs.
 |---|---|---:|---:|
 | schema_version | state schema revision | yes | no |
 | intent | what Avaia is currently trying to do | yes | no |
-| last_proposal | latest proposal emitted by Avaia | yes | no |
+| last_decision | latest decision Avaia made; an owner's position is not one | yes | no |
 | pause_reason | why the current intent is paused | yes | no |
 
 AvaiaState::model_context() is the only model-facing projection defined here. It contains
@@ -43,8 +52,12 @@ KV state, logits, or model-specific cache.
 **Presence history.** The journal records where a person stood. It is device-local and is not
 folded into Avaia identity or continuity state.
 
-**Interaction completion.** A proposal is not an interaction and a pause is not a failed
-interaction. Admission and completion belong to the protocol boundary.
+**Interaction completion.** A decision is not an interaction and a pause is not a failed
+interaction. Whether an interaction happened belongs to the protocol boundary; where Avaia
+walks never reaches it.
+
+**Permission.** There is none to record. No field holds an approval, a delegation scope or a
+step waiting to be admitted, because a walk has none of them.
 
 **Relationship/BondChain state.** Neither is mirrored here.
 
@@ -66,6 +79,13 @@ A storage implementation must:
 3. reject or quarantine a major schema it cannot interpret rather than rewriting it;
 4. replace the state atomically;
 5. never derive subject identity from model identity.
+
+## Schema v2
+
+v2 renamed `last_proposal` to `last_decision`, `OwnerControl` to `OwnerAtWheel` and
+`NoAdmissibleAction` to `NothingToChoose`, and added the `OwnerWaypoint` intent. A v1 record
+reads field for field under the old names; `AvaiaState::upgraded` returns it as v2, and
+returns nothing for a schema newer than this crate, which a store keeps as it is.
 
 ## Runtime replacement
 
