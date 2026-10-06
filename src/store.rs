@@ -3,7 +3,7 @@
 
 //! Where Avaia's continuity state is kept, as rules rather than as storage.
 //!
-//! This crate does no I/O. A product supplies the storage behind AvaiaStateStore. The
+//! This crate does no I/O. A product supplies the storage behind `AvaiaStateStore`. The
 //! boundary keeps subject + schema metadata outside the schema-specific payload so a runtime
 //! can quarantine a future record without first trying to deserialize it.
 //!
@@ -24,7 +24,7 @@ impl AvaiaSubject {
     /// Creates a non-empty subject.
     ///
     /// # Errors
-    /// Returns EmptySubject for an empty or blank identifier.
+    /// Returns `EmptySubject` for an empty or blank identifier.
     pub fn new(value: impl Into<String>) -> Result<Self, EmptySubject> {
         let value = value.into();
         if value.trim().is_empty() {
@@ -132,7 +132,7 @@ pub enum StateStoreError<E> {
 /// Restores state after inspecting subject/schema envelope metadata.
 ///
 /// # Errors
-/// Returns WrongSubject for a foreign envelope, InvalidPayload for malformed bytes of a schema
+/// Returns `WrongSubject` for a foreign envelope, `InvalidPayload` for malformed bytes of a schema
 /// this crate claims to understand, and Storage for an adapter failure.
 pub fn restore<S: AvaiaStateStore>(
     store: &S,
