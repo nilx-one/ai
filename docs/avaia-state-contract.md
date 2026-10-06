@@ -3,7 +3,8 @@
 
 # Avaia state contract
 
-**Status:** v1 product contract for continuity across inference-runtime replacement.
+**Status:** v2 product contract (`AVAIA_STATE_SCHEMA_VERSION = 2`) for continuity across
+inference-runtime replacement.
 
 ## Purpose
 
