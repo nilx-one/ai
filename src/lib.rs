@@ -7,6 +7,7 @@ mod decision;
 mod inference;
 mod routing;
 mod state;
+mod store;
 
 use aiai_runtime::ActivationState;
 use serde::{Deserialize, Serialize};
@@ -20,6 +21,10 @@ pub use inference::{
 pub use routing::{AvaiaFailureReport, FailureSink, RoutedFailure, route_failure};
 pub use state::{
     AVAIA_STATE_SCHEMA_VERSION, AvaiaIntent, AvaiaModelContext, AvaiaPauseReason, AvaiaState,
+};
+pub use store::{
+    AvaiaStateStore, AvaiaSubject, EmptySubject, Restored, StateStoreError, StoredAvaiaState,
+    persist, restore,
 };
 
 /// A navigation position an owner set: the only way an owner influences where Avaia goes.

@@ -166,7 +166,8 @@ workstreams:
   - id: state-contract
     issue: https://github.com/nilx-one/ai/issues/15
     repo: nilx-one/ai
-    status: ready
+    status: in review           # type and model projection in src/state.rs (v2); storage
+                                 # rules as a port in src/store.rs; no product store yet
     blocked_by: []
     blocks: []
     why: >-

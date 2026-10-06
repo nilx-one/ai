@@ -68,17 +68,22 @@ more continuity, it must add an explicit bounded field with its own semantics.
 
 ## Persistence and authentication boundary
 
-The persistence adapter is intentionally not part of this crate's v1 type. Storage is this
-repository's trust boundary, while authentication/subject identity remains owned by the
-identity/protocol layer.
+Storage is this repository's trust boundary, while authentication and subject identity remain
+owned by the identity/protocol layer. The crate still does no I/O: `src/store.rs` states the
+rules as a port, `AvaiaStateStore`, that a product implements over whatever storage it has,
+and two functions, `restore` and `persist`, that are the only way through it.
 
-A storage implementation must:
+| Rule | Where it holds |
+|---|---|
+| bind the stored value to the already-established Avaia subject | a record is `StoredAvaiaState { subject, state }`; `restore` and `persist` refuse a record bound to another subject (`WrongSubject`) and never read it as hers |
+| preserve the schema version | `persist` writes only the current schema (`NotCurrentSchema`) |
+| reject or quarantine a major schema it cannot interpret rather than rewriting it | `restore` reads a v1 record and upgrades it; a newer one is `Restored::Quarantined`, she starts fresh, and `persist` refuses to write over it (`WouldOverwriteNewer`) |
+| replace the state atomically | `AvaiaStateStore::replace` is atomic by contract: after a failed write the previous record is still the one kept |
+| never derive subject identity from model identity | `AvaiaSubject` is an opaque, non-empty identifier handed in by the identity layer; nothing in the crate makes one from a model, runtime, device or cache |
 
-1. bind the stored value to the already-established Avaia subject;
-2. preserve the schema version;
-3. reject or quarantine a major schema it cannot interpret rather than rewriting it;
-4. replace the state atomically;
-5. never derive subject identity from model identity.
+What authenticates the subject, and where the bytes live (IndexedDB, a file, a server row),
+stay outside this crate. A storage implementation keeps bytes; it does not decide what is
+read or written.
 
 ## Schema v2
 
@@ -93,6 +98,10 @@ The runtime lifecycle and the state lifecycle are independent.
 
 Replacing or evicting the model may discard model cache without changing AvaiaState.
 Restoring a new runtime consumes the existing state; it does not create a new subject.
+`restore` takes the subject, never a model: the same subject on another runtime, another model
+size, or after the model was evicted from a device's cache gets back the same state. The two
+lifecycles stay unrelated: evicting a model never touches the store, and losing the store
+never touches a cached model.
 
 ## Future evolution
 
