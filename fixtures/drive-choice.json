@@ -67,10 +67,7 @@
         "0": 0,
         "1": 1
       },
-      "refuses": [
-        "pick up",
-        "3"
-      ]
+      "refuses": ["pick up", "3"]
     },
     {
       "name": "an outing with feelings, a wander and home",
@@ -121,13 +118,7 @@
         "0": 0,
         "3\n": 3
       },
-      "refuses": [
-        "6",
-        "10",
-        "05",
-        "go home",
-        "2, because I love it"
-      ]
+      "refuses": ["6", "10", "05", "go home", "2, because I love it"]
     }
   ],
   "refused_menus": [
