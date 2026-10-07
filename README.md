@@ -18,7 +18,9 @@ loads](docs/model-selection.md) states which models this runtime serves, the con
 that decided them, what living on a device costs when its cache is evicted, what is still
 unmeasured, and what serving the artifacts from our own host requires. The catalog and the
 selection rule are `src/inference.rs`, and the closed action set a decode may not step
-outside is `src/decision.rs`.
+outside is `src/decision.rs`. The menus the Core drive offers while she walks (where to go out
+to, whether to step aside for something on the way) are put to a model and read back by
+`src/choice.rs`, against the shared `fixtures/drive-choice.json`.
 
 ## Evolving Avaia
 

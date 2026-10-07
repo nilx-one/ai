@@ -257,6 +257,30 @@ It is recorded here so this document does not read as if it never happened:
   decision. Moving it onto `DecisionMenu` keeps the same candidate boundary: only what the
   person already walked past.
 
+## Her choices on a walk: menus from the Core drive
+
+When and where she walks on her own is now decided by the deterministic drive in
+`nilx-one/core` (`docs/avaia-drive.md` there). The drive covers strolls near a point B after
+the stand there, outings, and stepping aside for something on the way. Web only carries out
+its commands. Where a choice is hers, the drive emits `choose`: a closed menu of numbered
+options and its own pick. `src/choice.rs` is how that menu reaches a model:
+
+- **The vocabulary is closed and checked here first.** `carry_on`, `glance`, `pick_up` for a
+  distraction; `stay`, `go`, `wander`, `home` for an outing; a kind code, `near`/`far`, and
+  a feeling (`new`, `known`, `fond`, `loved`). A menu with anything else is refused before it
+  is worded, so a prompt can never carry free text, a name or a place.
+- **She points at a number.** `ChoiceMenu::grammar` admits exactly the offered numbers.
+  `ChoiceMenu::decide` reads a decode back as one of them and refuses everything else. A
+  refusal is no answer: the drive's own pick stands, and so does it when no model is loaded
+  or the answer comes late.
+- **MWL1 holds.** Stepping aside is not a second movement action. It is a `NavigateTo` to a
+  resolved ref, after which the walk carries on to where it was going, an owner's point B
+  included (MWL13). Picking a find up and glancing at a sight are not movement at all.
+- **One reading, two runtimes.** `fixtures/drive-choice.json` holds the system prompt and
+  golden cases (prompt text, grammar, decodes accepted and refused, menus refused). Web keeps
+  a byte-identical copy and tests its port against it, the same way it does
+  `local-model-eligibility.json`.
+
 ## Explicitly out of scope for this workstream
 
 - **Transport.** Named separately in `map-data.md`; large enough to need its own workstream and
