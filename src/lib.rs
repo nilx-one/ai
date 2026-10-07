@@ -3,6 +3,7 @@
 
 #![forbid(unsafe_code)]
 
+mod choice;
 mod decision;
 mod inference;
 mod routing;
@@ -12,6 +13,10 @@ mod store;
 use aiai_runtime::ActivationState;
 use serde::{Deserialize, Serialize};
 
+pub use choice::{
+    CHOICE_SYSTEM_PROMPT, ChoiceAction, ChoiceError, ChoiceKind, ChoiceMenu, ChoiceMenuError,
+    ChoiceOption, Feeling, Heading, Reach,
+};
 pub use decision::{DecisionError, DecisionMenu, DecisionMenuError, MenuDecision, StopAction};
 pub use inference::{
     Admission, DeviceCapability, DeviceLimit, Ineligible, Licence, LocalModel, MemoryBudget,
