@@ -261,12 +261,14 @@ It is recorded here so this document does not read as if it never happened:
 
 When and where she walks on her own is now decided by the deterministic drive in
 `nilx-one/core` (`docs/avaia-drive.md` there). The drive covers strolls near a point B after
-the stand there, outings, and stepping aside for something on the way. Web only carries out
+the stand there, curiosity about the notebook's landmarks, outings, and stepping aside for
+something on the way. Web only carries out
 its commands. Where a choice is hers, the drive emits `choose`: a closed menu of numbered
 options and its own pick. `src/choice.rs` is how that menu reaches a model:
 
 - **The vocabulary is closed and checked here first.** `carry_on`, `glance`, `pick_up` for a
-  distraction; `stay`, `go`, `wander`, `home` for an outing; a kind code, `near`/`far`, and
+  distraction; `stay`, `go`, `wander`, `home` for an outing; `stay`, `study` for curiosity
+  (which notebook landmark to go and study, if any); a kind code, `near`/`far`, and
   a feeling (`new`, `known`, `fond`, `loved`). A menu with anything else is refused before it
   is worded, so a prompt can never carry free text, a name or a place.
 - **She points at a number.** `ChoiceMenu::grammar` admits exactly the offered numbers.

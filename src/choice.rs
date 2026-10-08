@@ -5,7 +5,8 @@
 //!
 //! What Avaia does next while she walks is decided by the deterministic drive in
 //! `nilx-one/core` (`docs/avaia-drive.md` there). Where a choice is hers — where to go out
-//! to, whether something on the way is worth a detour — the drive emits a `choose` command:
+//! to, which notebook landmark to go and study, whether something on the way is worth a
+//! detour — the drive emits a `choose` command:
 //! a closed menu of numbered options and its own pick. This module is the 0x1 vocabulary
 //! for putting that menu to a local model and reading its answer back:
 //!
@@ -34,6 +35,8 @@ pub enum ChoiceKind {
     Distraction,
     /// Where to go out to.
     Outing,
+    /// Which landmark from her notebook to go and study, if any.
+    Curiosity,
 }
 
 /// One action of the drive's closed vocabulary.
@@ -47,6 +50,7 @@ pub enum ChoiceAction {
     Go,
     Wander,
     Home,
+    Study,
 }
 
 impl ChoiceAction {
@@ -54,6 +58,7 @@ impl ChoiceAction {
         match kind {
             ChoiceKind::Distraction => matches!(self, Self::CarryOn | Self::Glance | Self::PickUp),
             ChoiceKind::Outing => matches!(self, Self::Stay | Self::Go | Self::Wander | Self::Home),
+            ChoiceKind::Curiosity => matches!(self, Self::Stay | Self::Study),
         }
     }
 }
@@ -234,6 +239,9 @@ impl ChoiceMenu {
             }
             (ChoiceKind::Distraction, _) => "You are walking on your own, and you pass something.",
             (ChoiceKind::Outing, _) => "You are standing, rested enough to go out.",
+            (ChoiceKind::Curiosity, _) => {
+                "You are standing with time to spare, and landmarks from your notebook come to mind."
+            }
         };
         let mut prompt = String::from(situation);
         prompt.push_str("\nOptions:");
@@ -301,6 +309,10 @@ fn wording(option: &ChoiceOption) -> String {
         ),
         ChoiceAction::Wander => "wander a short way along the paths".to_owned(),
         ChoiceAction::Home => "go home".to_owned(),
+        ChoiceAction::Study => format!(
+            "go and study {}",
+            thing.unwrap_or_else(|| "a landmark".to_owned())
+        ),
     };
     let mut notes: Vec<&str> = Vec::new();
     if option.action != ChoiceAction::Glance {
