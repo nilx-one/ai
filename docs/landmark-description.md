@@ -7,43 +7,27 @@ loop and the part this repository owns.
 
 ## The loop
 
+Core owns the request and result envelope. `src/describe.rs::execute_description`
+is the faculty entry point: given Core's closed archive-fact request and an optional
+local model proposal with model id, it returns `{text,produced_by,template_version}`.
+A denied model proposal returns tier 0; the host does not invent text or acknowledge
+completion without a result.
+
 ```text
-host world layer        Core drive                 host                    ai faculty
-passing{ref, described} ──▶ is it new? ──describe{at}──▶ facts of `at` ──▶ template (tier 0)
-                                                        │                  retelling (tier 1+)
-                         ◀──described{at}────────────── │ ◀── admit() ─────┘
-                         show{at, as, ms} ─────────────▶ shows it on every surface
-                         keep{at} ─────────────────────▶ notebook: the short description
+host world layer → passing{ref, described:false} → Core drive: describe{at}
+host world layer → description_facts{at, request} → Core validates facts
+Core drive → ai_describe{at, request_id, request} → AI faculty on-device
+AI faculty → ai_described{at, request_id, result} → Core checks answer
+Core drive → show{at, how, ms, result} + keep{at, result} → host Web/iOS/MiniApp
 ```
 
-1. **Core sees what to describe.** The host reports what a walk passes, and whether its
-   notebook already holds a description of it (`described`). When the Avaia stops in front of a
-   landmark that is not described, and not described already this session, the drive asks the
-   host for one (`describe`). The drive never sees the text, the name or the place: it decides
-   *when*, and *how* it is shown.
-2. **The host asks this faculty.** It sends the landmark's archive facts
-   ([`LandmarkFacts`](../src/describe.rs)), never anything about the person.
-3. **The faculty describes.**
-   - Tier 0 is a deterministic description worded from a closed set of facts (name, kind,
-     year, author, architect, height, material). It is the product. Without a model, this is
-     what she says and what is kept.
-   - With a local model, the model is asked to retell that description in her own words, and
-     [`admit`](../src/describe.rs) decides whether the retelling may stand. It is refused if
-     it is too long, has markup, is not finished as at most three sentences, has a number or a
-     capitalised word (a name, most likely) the description does not have, or leaves out the
-     landmark's name. A declined name passes: a capitalised word only has to share its first
-     four letters with a word of the description. A refusal is no answer: the
-     tier-0 description stands.
-   - The model runs on the device, as every faculty here does. On a host that cannot run one
-     (a Telegram or Discord webview without WebGPU, a watch), tier 0 is the whole answer.
-4. **Core says what to show and how.** The host answers `described`. The drive then emits
-   `show` (which landmark, as what, for how long), and in the same answer `keep`. Every host
-   (web, Telegram, Discord) carries out the same commands.
-5. **The host keeps a short description.** It is written into the device-local
-   landmark notebook beside the `seen` or `studied` entry. Per [`mind.md`](mind.md) it travels
-   as an envelope: the text, and what produced it (`template` with its version, or the model
-   id). A retelling is a cache: a device may throw it away and word tier 0 again. The tier-0
-   text is the landmark's facts, and means the same everywhere.
+1. **Core detects the landmark.** The host world adapter reports opaque refs and notebook status; Core decides when to request facts.
+2. **Core builds the AI contract.** The adapter returns `description_facts` with only permitted archive fields. Core validates them and emits `ai_describe` with a request id. The host may transport it but cannot substitute a prompt.
+3. **AI describes.** `execute_description` produces deterministic tier 0, or an admitted local-model retelling. The output is a typed result rather than a success flag. When the local model is unavailable the faculty itself returns tier 0.
+4. **AI returns to Core.** The `ai_described` input binds the result to the exact request id, landmark and deadline. Core rejects late, mismatched, malformed and cancelled responses and alone emits `show` plus `keep` containing the accepted text.
+5. **Host renders and keeps.** Web, iOS and Mini Apps display Core's result and store it in their local landmark notebook. No host may independently declare a description accepted.
+
+`nilx-one/web` currently has an adapter port of the faculty for on-device execution. It must stay fixture-compatible with this repository until both hosts can consume the shared compiled AI faculty directly. The adapter is a runtime implementation detail, not a second authority over generation.
 
 ## What the prompt may carry
 
@@ -59,8 +43,8 @@ position, journal, identity or notebook.
 2. **LD2.** The prompt carries the closed set of a landmark's facts and nothing about the
    person.
 3. **LD3.** Tier 0 is the product. Every host can describe every landmark without a model.
-4. **LD4.** The drive decides when and how, and never sees the text. The host words, shows
-   and keeps it.
+4. **LD4.** Core decides when and how, prepares the AI task, receives and checks the
+   result. AI owns wording and admission; the host transports, shows and keeps only Core's commands.
 5. **LD5.** A kept description is device-local notebook content (MWL4, MWL5): never synced,
    exported or used as training signal, and never presence, attendance or BondChain.
 
