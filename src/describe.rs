@@ -25,7 +25,7 @@
 //! The same cases are in `fixtures/landmark-description.json`, which `nilx-one/web` keeps a
 //! byte-identical copy of and tests its own port against.
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 /// The archive facts a description may use, in the order it uses them.
@@ -45,6 +45,56 @@ or a place it does not contain. Answer with the description and nothing else.";
 
 /// The longest description that may be shown or kept, in characters.
 pub const DESCRIPTION_MAX_CHARS: usize = 240;
+
+/// Version of tier-0 wording, also carried through Core to the notebook.
+pub const DESCRIPTION_TEMPLATE_VERSION: u16 = 1;
+
+/// What the AI faculty returns to Core. Core never accepts a bare "done"
+/// acknowledgement: it must receive the actual generated text.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct LandmarkDescriptionResult {
+    pub text: String,
+    pub produced_by: String,
+    pub template_version: u16,
+}
+
+/// Executes Core's typed request with an optional local-model candidate.
+///
+/// The host transports the request and candidate, but cannot supply a
+/// free-form prompt or decide which answer should be admitted. A malformed
+/// request is an error. An unavailable or inadmissible model answer returns
+/// tier 0, never invented content.
+///
+/// # Errors
+///
+/// Returns [`DescribeInputError`] when Core's archive-fact input is malformed.
+pub fn execute_description(
+    request_json: &str,
+    model_candidate: Option<(&str, &str)>,
+) -> Result<LandmarkDescriptionResult, DescribeInputError> {
+    let facts = LandmarkFacts::from_json(request_json)?;
+    let template = facts.template();
+    let model_text = model_candidate.and_then(|(text, model_id)| {
+        let valid_id = !model_id.is_empty()
+            && model_id.len() <= 80
+            && model_id
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.' | '/' | ':'));
+        if valid_id {
+            admit(&facts, text).ok().map(|accepted| (accepted, model_id))
+        } else {
+            None
+        }
+    });
+    let (text, produced_by) = model_text
+        .map_or_else(|| (template, "template".to_owned()), |(text, id)| (text, id.to_owned()));
+    Ok(LandmarkDescriptionResult {
+        text,
+        produced_by,
+        template_version: DESCRIPTION_TEMPLATE_VERSION,
+    })
+}
 
 /// The longest name or fact value a description takes, in characters.
 const VALUE_MAX_CHARS: usize = 80;
@@ -364,6 +414,31 @@ fn without_empty_think_block(text: &str) -> &str {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn the_faculty_returns_an_actual_result_for_core_to_forward() {
+        let request = r#"{"locale":"en","kind":"monument","kind_label":"monument","name":"Rodina","facts":{"start_date":"1981"}}"#;
+        let plain = super::execute_description(request, None).expect("tier 0");
+        assert_eq!(plain.text, "Rodina — monument. Since 1981.");
+        assert_eq!(plain.produced_by, "template");
+        assert_eq!(plain.template_version, 1);
+
+        let retold = super::execute_description(
+            request,
+            Some(("Rodina has stood here since 1981.", "Qwen3-0.6B")),
+        )
+        .expect("model");
+        assert_eq!(retold.produced_by, "Qwen3-0.6B");
+        assert_eq!(retold.text, "Rodina has stood here since 1981.");
+
+        let rejected = super::execute_description(
+            request,
+            Some(("Rodina was opened by Brezhnev in 1981.", "Qwen3-0.6B")),
+        )
+        .expect("fallback");
+        assert_eq!(rejected, plain);
+    }
+
+
     use serde_json::Value;
 
     use super::{DESCRIBE_SYSTEM_PROMPT, DESCRIPTION_MAX_CHARS, LandmarkFacts, admit};
