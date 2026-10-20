@@ -264,6 +264,13 @@ It is recorded here so this document does not read as if it never happened:
 - **The choice is a rule for now.** "Nearest noticed, not yet studied" stands in for a
   decision. Moving it onto `DecisionMenu` keeps the same candidate boundary: only what the
   person already walked past.
+- **An administrator's declared position notices too.** A Bond the service grants the
+  administrator capability (the same one that allows a teleport) notices landmarks from a
+  manually declared position as well as from its device. A tester who teleports can then
+  fill the notebook without walking there. It is a service-granted test capability, never a
+  default. Such a notice pays no experience, and it is no more evidence of having been
+  anywhere than any other notice (MWL15). For every other Bond a declared position notices
+  nothing.
 - **What she describes is kept, as seen.** When she steps aside for a sight and says what it
   is (the drive's `glance`), the notebook keeps it as `seen`: which landmark, when, and which
   Avaia. Seen is not studied. It earns no experience, and it never makes a landmark a curiosity
@@ -364,6 +371,10 @@ Stated so this document does not silently pick an answer by omission:
     kept. A seen entry earns no experience, is never a curiosity candidate on its own, and is
     never presence, attendance or BondChain. Only the person's own noticing puts a landmark
     within her curiosity, and only her study makes it studied.
+15. **MWL15.** A declared position notices landmarks only for a Bond the service grants the
+    administrator capability; the client never infers it. A notice made that way pays no
+    experience and is never presence, attendance or BondChain. Curiosity still reaches only
+    open ground (MWL8), and a notice lights no cell (MWL9).
 
 ## Related
 
