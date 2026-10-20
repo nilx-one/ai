@@ -29,8 +29,10 @@ passing{ref, described} ──▶ is it new? ──describe{at}──▶ facts o
      what she says and what is kept.
    - With a local model, the model is asked to retell that description in her own words, and
      [`admit`](../src/describe.rs) decides whether the retelling may stand. It is refused if
-     it is too long, has markup, is not finished as at most three sentences, has a number the
-     description does not have, or leaves out the landmark's name. A refusal is no answer: the
+     it is too long, has markup, is not finished as at most three sentences, has a number or a
+     capitalised word (a name, most likely) the description does not have, or leaves out the
+     landmark's name. A declined name passes: a capitalised word only has to share its first
+     four letters with a word of the description. A refusal is no answer: the
      tier-0 description stands.
    - The model runs on the device, as every faculty here does. On a host that cannot run one
      (a Telegram or Discord webview without WebGPU, a watch), tier 0 is the whole answer.
