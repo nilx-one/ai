@@ -20,8 +20,9 @@ pub use choice::{
 };
 pub use decision::{DecisionError, DecisionMenu, DecisionMenuError, MenuDecision, StopAction};
 pub use describe::{
-    DESCRIBE_SYSTEM_PROMPT, DESCRIBED_FACTS, DESCRIPTION_MAX_CHARS, DescribeInputError,
-    DescribeLocale, DescribeRefusal, LandmarkFacts, admit as admit_description,
+    DESCRIBE_SYSTEM_PROMPT, DESCRIBED_FACTS, DESCRIPTION_MAX_CHARS,
+    DESCRIPTION_TEMPLATE_VERSION, DescribeInputError, DescribeLocale, DescribeRefusal,
+    LandmarkDescriptionResult, LandmarkFacts, admit as admit_description, execute_description,
 };
 pub use inference::{
     Admission, DeviceCapability, DeviceLimit, Ineligible, Licence, LocalModel, MemoryBudget,
