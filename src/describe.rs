@@ -442,7 +442,6 @@ mod tests {
         assert_eq!(rejected, plain);
     }
 
-
     use serde_json::Value;
 
     use super::{DESCRIBE_SYSTEM_PROMPT, DESCRIPTION_MAX_CHARS, LandmarkFacts, admit};
