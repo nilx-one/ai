@@ -82,13 +82,17 @@ pub fn execute_description(
                 .chars()
                 .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.' | '/' | ':'));
         if valid_id {
-            admit(&facts, text).ok().map(|accepted| (accepted, model_id))
+            admit(&facts, text)
+                .ok()
+                .map(|accepted| (accepted, model_id))
         } else {
             None
         }
     });
-    let (text, produced_by) = model_text
-        .map_or_else(|| (template, "template".to_owned()), |(text, id)| (text, id.to_owned()));
+    let (text, produced_by) = model_text.map_or_else(
+        || (template, "template".to_owned()),
+        |(text, id)| (text, id.to_owned()),
+    );
     Ok(LandmarkDescriptionResult {
         text,
         produced_by,
