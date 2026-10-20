@@ -17,8 +17,10 @@
 //! 3. [`DESCRIBE_SYSTEM_PROMPT`] and the template as the user turn ask a local model to say
 //!    the same thing in her own words.
 //! 4. [`admit`] decides whether that answer may be shown. A rephrasing that could carry a
-//!    new fact (a number the template does not have, a missing name, too long, markup, an
-//!    unfinished sentence) is refused, and the template stands.
+//!    new fact (a number or a capitalised word the template does not have, a missing name,
+//!    too long, markup, an unfinished sentence) is refused, and the template stands. A
+//!    capitalised word passes when its first four letters are a template word's, so a
+//!    declined name does, and an invented person does not.
 //!
 //! The same cases are in `fixtures/landmark-description.json`, which `nilx-one/web` keeps a
 //! byte-identical copy of and tests its own port against.
@@ -53,6 +55,31 @@ const KIND_MAX_CHARS: usize = 32;
 /// The most sentences a description may have.
 const MAX_SENTENCES: usize = 3;
 
+/// The capitalised words a retelling may open a sentence with that are no name.
+const OPENERS: [&str; 18] = [
+    "It",
+    "Its",
+    "This",
+    "The",
+    "A",
+    "An",
+    "Here",
+    "She",
+    "Це",
+    "Цей",
+    "Ця",
+    "Вона",
+    "Тут",
+    "Это",
+    "Этот",
+    "Эта",
+    "Она",
+    "Здесь",
+];
+
+/// How many leading letters two words must share to be the same word declined.
+const STEM_CHARS: usize = 4;
+
 /// The languages a description is worded in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -86,6 +113,8 @@ pub enum DescribeRefusal {
     NewNumber,
     /// The landmark's name is missing from it.
     NameMissing,
+    /// A capitalised word, a name most likely, that the template does not have.
+    NewName,
 }
 
 #[derive(Deserialize)]
@@ -196,6 +225,15 @@ pub fn admit(facts: &LandmarkFacts, said: &str) -> Result<String, DescribeRefusa
     if facts.name().is_some_and(|name| !text.contains(name)) {
         return Err(DescribeRefusal::NameMissing);
     }
+    let stems: Vec<String> = words(&template).map(stem).collect();
+    let new_name = words(text).any(|word| {
+        word.chars().next().is_some_and(char::is_uppercase)
+            && !OPENERS.contains(&word)
+            && !stems.contains(&stem(word))
+    });
+    if new_name {
+        return Err(DescribeRefusal::NewName);
+    }
     Ok(text.to_owned())
 }
 
@@ -253,6 +291,20 @@ fn metres(value: &str) -> Option<String> {
         None => whole.to_owned(),
     };
     (metres != "0").then_some(metres)
+}
+
+/// The runs of letters in `text`.
+fn words(text: &str) -> impl Iterator<Item = &str> {
+    text.split(|c: char| !c.is_alphabetic())
+        .filter(|word| !word.is_empty())
+}
+
+/// A word's first letters, lowercased: the same for its declined forms.
+fn stem(word: &str) -> String {
+    word.chars()
+        .take(STEM_CHARS)
+        .flat_map(char::to_lowercase)
+        .collect()
 }
 
 /// How many sentences end in `text`: a terminator at the end or before a space, so a

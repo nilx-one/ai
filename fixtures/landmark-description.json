@@ -33,7 +33,8 @@
         "<b>Батьківщина-Мати</b> — монумент.",
         "Батьківщина-Мати — монумент.\nВисота 62 м.",
         "Батьківщина-Мати. Монумент. З 1981. Автор. Висота.",
-        "<think>hm</think>Батьківщина-Мати — монумент."
+        "<think>hm</think>Батьківщина-Мати — монумент.",
+        "Батьківщина-Мати — монумент роботи Євгена Вучетича."
       ]
     },
     {
@@ -56,7 +57,9 @@
       "refuses": [
         "Rodina is a 13 m statue.",
         "Rodina was built in 1981.",
-        "A statue 12.5 m tall."
+        "A statue 12.5 m tall.",
+        "Rodina was unveiled by Brezhnev.",
+        "Rodina stands in Kyiv, 12.5 m tall."
       ]
     },
     {
@@ -73,11 +76,13 @@
       },
       "template": "Мемориал. С 1967 года. Материал — granite.",
       "accepts": [
-        "Гранитный мемориал, стоящий с 1967 года."
+        "Мемориал, стоящий с 1967 года.",
+        "Это мемориал с 1967 года, материал — granite."
       ],
       "refuses": [
         "Мемориал с 1966 года.",
-        "Мемориал | 1967."
+        "Мемориал | 1967.",
+        "Гранитный мемориал, стоящий с 1967 года."
       ]
     },
     {
@@ -94,7 +99,8 @@
       },
       "template": "Arch — monument.",
       "accepts": [
-        "Arch is a monument."
+        "Arch is a monument.",
+        "It is a monument called Arch."
       ],
       "refuses": [
         "Arch is a monument from 1990.",
