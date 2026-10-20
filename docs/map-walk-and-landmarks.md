@@ -276,6 +276,10 @@ It is recorded here so this document does not read as if it never happened:
   Avaia. Seen is not studied. It earns no experience, and it never makes a landmark a curiosity
   candidate: only the person walking past does (MWL8, MWL14). What she glances at was already
   on her walk, so keeping it reaches no further than the walk did.
+- **What she says about it is a description.** The drive asks for one when she stops in
+  front of a landmark the notebook has not described. The host words it from the archive's
+  facts, a local model may retell it, and the notebook keeps it beside the entry
+  ([Describing a landmark](landmark-description.md), MWL16).
 
 ## Her choices on a walk: menus from the Core drive
 
@@ -375,6 +379,9 @@ Stated so this document does not silently pick an answer by omission:
     administrator capability; the client never infers it. A notice made that way pays no
     experience and is never presence, attendance or BondChain. Curiosity still reaches only
     open ground (MWL8), and a notice lights no cell (MWL9).
+16. **MWL16.** A landmark's description says only what the archive declares about it. A model
+    may retell it and never add to it, and its prompt never carries anything about the person
+    (LD1–LD5 in [Describing a landmark](landmark-description.md)).
 
 ## Related
 

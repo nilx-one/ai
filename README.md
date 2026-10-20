@@ -13,7 +13,7 @@ model output   != protocol truth; simulation != BondChain fact
 
 ## Local inference
 
-Avaia's model chooses where to go next, not what to say. [Choosing the models Avaia
+Avaia's model chooses where to go next, and may retell a description in her own words; it never decides what is said to be true. [Choosing the models Avaia
 loads](docs/model-selection.md) states which models this runtime serves, the constraints
 that decided them, what living on a device costs when its cache is evicted, what is still
 unmeasured, and what serving the artifacts from our own host requires. The catalog and the
@@ -75,7 +75,9 @@ ordered, with what blocks what; the issues remain the source of truth.
 [Avaia walks the map, only while spectating](docs/map-walk-and-landmarks.md) scopes a walk as
 a chain of the existing NavigateTo proposal, states what a landmark projection would need from
 `nilx-one/0x1` before there is anything to discover, and names what it deliberately excludes —
-transport, and any autonomy outside SPECTATE.
+transport, and any autonomy outside SPECTATE. [Describing a landmark](docs/landmark-description.md)
+is how she says what a landmark is: worded from the archive's facts, retold by a model when one
+is loaded, never added to.
 
 ## Contributing
 
