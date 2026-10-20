@@ -120,6 +120,14 @@ device-local, encrypted at rest, never synced, never exported, never training si
 separate governance contract (`presence-journal-lifecycle.md`, the `artificial-bonds/training-
 signal.md` egress gate). Widening the TypeScript union from `"self"` to `"self" | "avaia"` is the client-side implementation change, but it is not the whole contract change: `nilx-one/core`'s registered presence-journal shape explicitly says that `source` is a closed vocabulary with exactly one usable value in the current phase. Before Web writes `source: "avaia"`, that registered contract note must be updated to admit the second value and define its local-only semantics. Core still does not own the journal or need a Rust implementation.
 
+The second local record a walk may write is the landmark notebook (see "What Web ships first"
+below). That is where what she described is made durable, deliberately: what she said is the
+archive's own name, kind and facts for a landmark, so it means the same whichever model, if
+any, was loaded. It is state, not a cache, under the same terms as the journal: device-local,
+never synced, never exported, never training signal. Before Web writes a description there,
+`nilx-one/core` registers the notebook's shape, the way it registers the presence journal's,
+so a later adoption does not invent a different one.
+
 ### 5. "What's new" is a diff against the caller's own last look
 
 Because `map.registry` is reconstructable public state, "new since Avaia last looked at this
@@ -256,6 +264,11 @@ It is recorded here so this document does not read as if it never happened:
 - **The choice is a rule for now.** "Nearest noticed, not yet studied" stands in for a
   decision. Moving it onto `DecisionMenu` keeps the same candidate boundary: only what the
   person already walked past.
+- **What she describes is kept, as seen.** When she steps aside for a sight and says what it
+  is (the drive's `glance`), the notebook keeps it as `seen`: which landmark, when, and which
+  Avaia. Seen is not studied. It earns no experience, and it never makes a landmark a curiosity
+  candidate: only the person walking past does (MWL8, MWL14). What she glances at was already
+  on her walk, so keeping it reaches no further than the walk did.
 
 ## Her choices on a walk: menus from the Core drive
 
@@ -318,7 +331,8 @@ Stated so this document does not silently pick an answer by omission:
 3. **MWL3.** Avaia never mints a `MapTargetId`; the world layer resolves candidates before a
    decision is offered.
 4. **MWL4.** Walk-derived observation is device-local by default; persisting it uses the
-   already-reserved `source: "avaia"` slot and no other channel.
+   already-reserved `source: "avaia"` slot or the device-local landmark notebook, and no other
+   channel.
 5. **MWL5.** No walk-derived data is synced, exported, or used as training signal absent a
    separate governance contract.
 6. **MWL6.** No landmark, artifact, or point-of-interest data is published or consumed before a
@@ -346,6 +360,10 @@ Stated so this document does not silently pick an answer by omission:
 13. **MWL13.** An owner influences where Avaia goes only by setting a navigation position
     (`OwnerWaypoint`). She heads there and then carries on with her own decisions; a position
     is never a standing command and never a veto.
+14. **MWL14.** What Avaia describes on a walk is kept as `seen` and never promoted by being
+    kept. A seen entry earns no experience, is never a curiosity candidate on its own, and is
+    never presence, attendance or BondChain. Only the person's own noticing puts a landmark
+    within her curiosity, and only her study makes it studied.
 
 ## Related
 
@@ -354,6 +372,7 @@ Stated so this document does not silently pick an answer by omission:
 - [What belongs upstream, and what does not](foundation-gaps.md)
 - [Choosing the models Avaia loads](model-selection.md)
 - [`nilx-one/core` — Presence journal](https://github.com/nilx-one/core/blob/main/docs/presence-journal.md)
+- [`nilx-one/core` — Landmark notebook](https://github.com/nilx-one/core/blob/master/docs/landmark-notebook.md)
 - [`nilx-one/0x1` — Map Architecture](https://github.com/nilx-one/0x1/blob/master/documents/12-map-architecture.md)
 - [`nilx-one/0x1` — Device Runtime and Control](https://github.com/nilx-one/0x1/blob/master/documents/artificial-bonds/device-runtime-and-control.md)
 - [`nilx-one/web` — Map data](https://github.com/nilx-one/web/blob/master/docs/map-data.md)
