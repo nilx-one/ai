@@ -5,6 +5,7 @@
 
 mod choice;
 mod decision;
+mod describe;
 mod inference;
 mod routing;
 mod state;
@@ -18,6 +19,10 @@ pub use choice::{
     ChoiceOption, Feeling, Heading, Reach,
 };
 pub use decision::{DecisionError, DecisionMenu, DecisionMenuError, MenuDecision, StopAction};
+pub use describe::{
+    DESCRIBE_SYSTEM_PROMPT, DESCRIBED_FACTS, DESCRIPTION_MAX_CHARS, DescribeInputError,
+    DescribeLocale, DescribeRefusal, LandmarkFacts, admit as admit_description,
+};
 pub use inference::{
     Admission, DeviceCapability, DeviceLimit, Ineligible, Licence, LocalModel, MemoryBudget,
     ModelFamily, default_local_model, eligible_local_models, find_local_model, runtime_floor,
