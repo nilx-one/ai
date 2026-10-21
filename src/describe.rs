@@ -5,7 +5,8 @@
 //! answer may be shown.
 //!
 //! The drive in `nilx-one/core` decides *when* a landmark is described (its `describe`
-//! command); it never sees the place. The host answers it here:
+//! command), sends the archive facts here, and receives the result it shows and keeps.
+//! [`execute_description`] is that entry point:
 //!
 //! 1. [`LandmarkFacts::from_json`] reads what the archive declares about the landmark,
 //!    keeps only the closed set of facts in [`DESCRIBED_FACTS`], and drops any value that
@@ -21,6 +22,7 @@
 //!    too long, markup, an unfinished sentence) is refused, and the template stands. A
 //!    capitalised word passes when its first four letters are a template word's, so a
 //!    declined name does, and an invented person does not.
+//! 5. [`LandmarkDescriptionResult`] goes back to Core: the text and what produced it.
 //!
 //! The same cases are in `fixtures/landmark-description.json`, which `nilx-one/web` keeps a
 //! byte-identical copy of and tests its own port against.
@@ -49,6 +51,9 @@ pub const DESCRIPTION_MAX_CHARS: usize = 240;
 /// Version of tier-0 wording, also carried through Core to the notebook.
 pub const DESCRIPTION_TEMPLATE_VERSION: u16 = 1;
 
+/// What `produced_by` says of tier 0. No model may claim it.
+pub const TEMPLATE_PRODUCER: &str = "template";
+
 /// What the AI faculty returns to Core. Core never accepts a bare "done"
 /// acknowledgement: it must receive the actual generated text.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -64,7 +69,8 @@ pub struct LandmarkDescriptionResult {
 /// The host transports the request and candidate, but cannot supply a
 /// free-form prompt or decide which answer should be admitted. A malformed
 /// request is an error. An unavailable or inadmissible model answer returns
-/// tier 0, never invented content.
+/// tier 0, never invented content. A model id that is not a short plain id, or
+/// that is [`TEMPLATE_PRODUCER`], is no model: a retelling must never pass for tier 0.
 ///
 /// # Errors
 ///
@@ -77,7 +83,8 @@ pub fn execute_description(
     let template = facts.template();
     let model_text = model_candidate.and_then(|(text, model_id)| {
         let valid_id = !model_id.is_empty()
-            && model_id.len() <= 80
+            && model_id != TEMPLATE_PRODUCER
+            && model_id.len() <= MODEL_ID_MAX_CHARS
             && model_id
                 .chars()
                 .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.' | '/' | ':'));
@@ -90,7 +97,7 @@ pub fn execute_description(
         }
     });
     let (text, produced_by) = model_text.map_or_else(
-        || (template, "template".to_owned()),
+        || (template, TEMPLATE_PRODUCER.to_owned()),
         |(text, id)| (text, id.to_owned()),
     );
     Ok(LandmarkDescriptionResult {
@@ -102,6 +109,9 @@ pub fn execute_description(
 
 /// The longest name or fact value a description takes, in characters.
 const VALUE_MAX_CHARS: usize = 80;
+
+/// The longest model id a result may name, in characters.
+const MODEL_ID_MAX_CHARS: usize = 80;
 
 /// The longest kind code, as the drive caps it.
 const KIND_MAX_CHARS: usize = 32;
@@ -418,33 +428,12 @@ fn without_empty_think_block(text: &str) -> &str {
 
 #[cfg(test)]
 mod tests {
-    #[test]
-    fn the_faculty_returns_an_actual_result_for_core_to_forward() {
-        let request = r#"{"locale":"en","kind":"monument","kind_label":"monument","name":"Rodina","facts":{"start_date":"1981"}}"#;
-        let plain = super::execute_description(request, None).expect("tier 0");
-        assert_eq!(plain.text, "Rodina — monument. Since 1981.");
-        assert_eq!(plain.produced_by, "template");
-        assert_eq!(plain.template_version, 1);
-
-        let retold = super::execute_description(
-            request,
-            Some(("Rodina has stood here since 1981.", "Qwen3-0.6B")),
-        )
-        .expect("model");
-        assert_eq!(retold.produced_by, "Qwen3-0.6B");
-        assert_eq!(retold.text, "Rodina has stood here since 1981.");
-
-        let rejected = super::execute_description(
-            request,
-            Some(("Rodina was opened by Brezhnev in 1981.", "Qwen3-0.6B")),
-        )
-        .expect("fallback");
-        assert_eq!(rejected, plain);
-    }
-
     use serde_json::Value;
 
-    use super::{DESCRIBE_SYSTEM_PROMPT, DESCRIPTION_MAX_CHARS, LandmarkFacts, admit};
+    use super::{
+        DESCRIBE_SYSTEM_PROMPT, DESCRIPTION_MAX_CHARS, DESCRIPTION_TEMPLATE_VERSION, LandmarkFacts,
+        TEMPLATE_PRODUCER, admit, execute_description,
+    };
 
     /// The fixture `nilx-one/web` tests its own port against.
     const SHARED_FIXTURE: &str = include_str!("../fixtures/landmark-description.json");
@@ -506,5 +495,36 @@ mod tests {
             admit(&facts, "<think>\n\n</think>\n\nRodina stands here."),
             Ok("Rodina stands here.".to_owned())
         );
+    }
+
+    #[test]
+    fn the_faculty_returns_an_actual_result_for_core_to_forward() {
+        let request = r#"{"locale":"en","kind":"monument","kind_label":"monument","name":"Rodina","facts":{"start_date":"1981"}}"#;
+        let plain = execute_description(request, None).expect("tier 0");
+        assert_eq!(plain.text, "Rodina — monument. Since 1981.");
+        assert_eq!(plain.produced_by, TEMPLATE_PRODUCER);
+        assert_eq!(plain.template_version, DESCRIPTION_TEMPLATE_VERSION);
+
+        let retold = execute_description(
+            request,
+            Some(("Rodina has stood here since 1981.", "Qwen3-0.6B")),
+        )
+        .expect("model");
+        assert_eq!(retold.produced_by, "Qwen3-0.6B");
+        assert_eq!(retold.text, "Rodina has stood here since 1981.");
+
+        let rejected = execute_description(
+            request,
+            Some(("Rodina was opened by Brezhnev in 1981.", "Qwen3-0.6B")),
+        )
+        .expect("fallback");
+        assert_eq!(rejected, plain);
+
+        let disguised = execute_description(
+            request,
+            Some(("Rodina has stood here since 1981.", TEMPLATE_PRODUCER)),
+        )
+        .expect("fallback");
+        assert_eq!(disguised, plain);
     }
 }
